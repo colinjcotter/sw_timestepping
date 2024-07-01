@@ -175,7 +175,7 @@ sparameters = {
     "mg_coarse_pc_type": "python",
     "mg_coarse_pc_python_type": "firedrake.AssembledPC",
     "mg_coarse_assembled_pc_type": "lu",
-    "mg_coarse_assembled_pc_factor_mat_solver_type": "mumps",
+    "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
 }
     
 dt = 60*60*args.dt
@@ -235,7 +235,7 @@ veqn = q*p*dx + fd.inner(perp(fd.grad(p)), un)*dx
 vprob = fd.LinearVariationalProblem(fd.lhs(veqn), fd.rhs(veqn), qn)
 qparams = {'ksp_type':'preonly',
            'pc_type':'lu',
-           "pc_factor_mat_solver_type": "mumps"}
+           "pc_factor_mat_solver_type": "superlu_dist"}
 qsolver = fd.LinearVariationalSolver(vprob,
                                      solver_parameters=qparams)
 
