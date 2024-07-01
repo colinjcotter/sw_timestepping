@@ -6,6 +6,7 @@ u1, h1 = fd.split(Unp1)
 "Crank-Nicholson rule"
 half = fd.Constant(0.5)
 
+u0, h0 = fd.split(Un)
 eqn = (
     fd.inner(v, u1 - u0)*dx
     + half*dT*u_op(v, u0, h0)
@@ -29,6 +30,8 @@ dumpt = hdump*60.*60.
 tdump = 0.
 t = 0.
 PETSc.Sys.Print('tmax', tmax, 'dt', dt)
+
+u0, h0 = Un.subfunctions
 
 from firedrake.output import VTKFile
 file_sw = VTKFile(name+'.pvd')
