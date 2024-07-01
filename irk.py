@@ -2,9 +2,6 @@ from sw_setup import *
 from irksome import Dt, MeshConstant, RadauIIA, TimeStepper
 MC = MeshConstant(mesh)
 
-"Crank-Nicholson rule"
-half = fd.Constant(0.5)
-
 dT = MC.Constant(dt)
 t = MC.Constant(0.)
 

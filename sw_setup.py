@@ -106,22 +106,34 @@ def both(u):
 dT = fd.Constant(0.)
 dS = fd.dS
 
-def u_op(v, u, h):
+def u_op(v, u, h, system="full"):
     Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
     K = 0.5*fd.inner(u, u)
-    return (fd.inner(v, f*perp(u))*dx
-            - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
-            + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
-                          both(Upwind*u))*dS
-            - fd.div(v)*(g*(h + b) + K)*dx)
+    nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
+                  + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
+                             both(Upwind*u))*dS
+                  - fd.div(v)*(g*(h + b) + K)*dx)
+    linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*h*dx
+    if system == "linear":
+        return linear
+    if system == "nonlinear":
+        return nonlinear
+    return linear + nonlinear
 
-
-def h_op(phi, u, h):
+def h_op(phi, u, h, system="full"):
+    if system == "linear":
+        return H*fd.div(u)*phi*dx
     uup = 0.5 * (fd.dot(u, n) + abs(fd.dot(u, n)))
-    return (- fd.inner(fd.grad(phi), u)*h*dx
-        + fd.jump(phi)*(uup('+')*h('+')
-                        - uup('-')*h('-'))*dS
-            )
+    if system == "nonlinear":
+        return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
+                + fd.jump(phi)*(uup('+')*(h('+')-H)
+                                - uup('-')*(h('-')-H))*dS
+                )
+    else:
+        return (- fd.inner(fd.grad(phi), u)*h*dx
+                + fd.jump(phi)*(uup('+')*h('+')
+                                - uup('-')*h('-'))*dS
+                )
 
 # monolithic solver options
 
