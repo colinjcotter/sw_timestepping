@@ -47,28 +47,21 @@ def high_order_mesh_hierarchy(mh, degree, R0):
                             mh.fine_to_coarse_cells,
                             mh.refinements_per_level, mh.nested)
 
-if args.solver_mode == "monolithic":
-    basemesh = fd.IcosahedralSphereMesh(radius=R0,
-                                        refinement_level=base_level,
-                                        degree=1,
-                                        distribution_parameters = distribution_parameters)
-    del basemesh._radius
-    mh = fd.MeshHierarchy(basemesh, nrefs)
-    mh = high_order_mesh_hierarchy(mh, deg, R0)
-    for mesh in mh:
-        xf = mesh.coordinates
-        mesh.transfer_coordinates = fd.Function(xf)
-        x = fd.SpatialCoordinate(mesh)
-        r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
-        xf.interpolate(R0*xf/r)
-        mesh.init_cell_orientations(x)
-    mesh = mh[-1]
-else:
-    mesh = fd.IcosahedralSphereMesh(radius=R0,
-                                    refinement_level=args.ref_level, degree=deg,
+basemesh = fd.IcosahedralSphereMesh(radius=R0,
+                                    refinement_level=base_level,
+                                    degree=1,
                                     distribution_parameters = distribution_parameters)
+del basemesh._radius
+mh = fd.MeshHierarchy(basemesh, nrefs)
+mh = high_order_mesh_hierarchy(mh, deg, R0)
+for mesh in mh:
+    xf = mesh.coordinates
+    mesh.transfer_coordinates = fd.Function(xf)
     x = fd.SpatialCoordinate(mesh)
+    r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
+    xf.interpolate(R0*xf/r)
     mesh.init_cell_orientations(x)
+mesh = mh[-1]
 R0 = fd.Constant(R0)
 cx, cy, cz = fd.SpatialCoordinate(mesh)
 
@@ -93,8 +86,6 @@ f = 2*Omega*cz/fd.Constant(R0)  # Coriolis parameter
 g = fd.Constant(9.8)  # Gravitational constant
 b = fd.Function(V2, name="Topography")
 c = fd.sqrt(g*H)
-gamma0 = args.gamma
-gamma = fd.Constant(gamma0)
 
 # D = eta + b
 
@@ -142,13 +133,14 @@ def h_op(phi, u, h):
 "Crank-Nicholson rule"
 half = fd.Constant(0.5)
 
-testeqn = (
+eqn = (
     fd.inner(v, u1 - u0)*dx
     + half*dT*u_op(v, u0, h0)
     + half*dT*u_op(v, u1, h1)
     + phi*(h1 - h0)*dx
     + half*dT*h_op(phi, u0, h0)
-    + half*dT*h_op(phi, u1, h1))
+    + half*dT*h_op(phi, u1, h1)
+)
 
 # monolithic solver options
 
