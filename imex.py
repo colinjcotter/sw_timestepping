@@ -18,6 +18,7 @@ linear = (
 )
 
 lparams = {
+    "mat_type": "matfree",
     "snes_lag_jacobian": -2,
     "snes_lag_jacobian_persists": None,
     "snes_type": "ksponly",
@@ -26,7 +27,7 @@ lparams = {
     'pc_python_type': 'firedrake.HybridizationPC',
     'hybridization': {'ksp_type': 'preonly',
                       'pc_type': 'lu',
-                      "pc_factor_mat_solver_type":'mumps'
+                      "pc_factor_mat_solver_type":'superlu_dist'
                       }}
 
 improb = fd.NonlinearVariationalProblem(linear, Unp1)
@@ -54,13 +55,13 @@ massparams = {
     "snes_lag_jacobian_persists": None,
     "snes_type": "ksponly",
     "ksp_type": "gmres",
-    "pc_type": "pc_type": "fieldsplit",
+    "pc_type": "fieldsplit",
     "fieldsplit_0": mass,
     "fieldsplit_1": mass
 }
 
 expprob = fd.NonlinearVariationalProblem(nonlinear, Unp1)
-expsolver = fd.NonlinearVariationalSolver(exprob, options_prefix="exp",
+expsolver = fd.NonlinearVariationalSolver(expprob, options_prefix="exp",
                                           solver_parameters=mass)
 
 Unp1.assign(Un)
@@ -119,7 +120,5 @@ while t < tmax + 0.5*dt:
         file_sw.write(un, etan, qn)
         tdump -= dumpt
     stepcount += 1
-    itcount += nsolver.snes.getLinearSolveIterations()
-PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
-                "dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
+PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
 
