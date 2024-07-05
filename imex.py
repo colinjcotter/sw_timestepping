@@ -91,10 +91,12 @@ while t < tmax + 0.5*dt:
     t += dt
     tdump += dt
 
+    # half an implicit step
     with PETSc.Log.Event("implicit solver"):
         imsolver.solve()
         Un.assign(Unp1)
 
+    # a full explicit step using
     # heun scheme
     # yhat = y_0 + hf(y_0)
     # y_1 = y_0 + h/2*(f(y_0) + f(yhat))
@@ -106,6 +108,7 @@ while t < tmax + 0.5*dt:
         expsolver.solve()  #  Unp1 contains Un + h*f(yhat)
         Unp1.assign( (Un + Unp1)/2 )
 
+    # half an implicit step
     with PETSc.Log.Event("implicit solver"):
         imsolver.solve()
         Un.assign(Unp1)
