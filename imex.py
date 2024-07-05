@@ -4,7 +4,7 @@ Unp1 = fd.Function(W)
 u1, h1 = fd.split(Unp1)
 
 half = fd.Constant(0.5)
-quarter = fd.Constant(0.5)
+quarter = fd.Constant(0.25)
 
 u0, h0 = fd.split(Un)
 
@@ -101,10 +101,10 @@ while t < tmax + 0.5*dt:
     #     = (y_0 + h*f(y_0))/2 + (y_0 + h*f(yhat))/2)
     with PETSc.Log.Event("explicit solver"):
         Uhat.assign(Un)
-        expsolver.solve()  #  Unp1 contains h*f(y_0)
-        Uhat.assign(Un + Unp1) #  Uhat contains yhat = y_0 + hf(y_0) 
-        expsolver.solve()  #  Unp1 contains h*f(yhat)
-        Unp1.assign( (Un + Unp1)/2 + Uhat/2 )
+        expsolver.solve()  #  Unp1 contains Un + h*f(y_0)
+        Uhat.assign(Un + Unp1) #  Uhat contains yhat = Un + h*f(y_0)
+        expsolver.solve()  #  Unp1 contains Un + h*f(yhat)
+        Unp1.assign( (Un + Unp1)/2 )
 
     with PETSc.Log.Event("implicit solver"):
         imsolver.solve()
