@@ -82,7 +82,10 @@ file_sw = VTKFile(name+'.pvd')
 etan.assign(h0 - H + b)
 un.assign(u0)
 qsolver.solve()
-file_sw.write(un, etan, qn)
+fd.assemble(Courant_num_form, tensor=Courant_num)
+Courant.interpolate(Courant_num/Courant_denom)
+
+file_sw.write(un, etan, qn, Courant)
 
 itcount = 0
 stepcount = 0
@@ -112,7 +115,7 @@ while t < tmax + 0.5*dt:
     with PETSc.Log.Event("implicit solver"):
         imsolver.solve()
         Un.assign(Unp1)
-        
+
     if args.one_step:
         t = tmax + dt
 
@@ -120,7 +123,10 @@ while t < tmax + 0.5*dt:
         etan.assign(h0 - H + b)
         un.assign(u0)
         qsolver.solve()
-        file_sw.write(un, etan, qn)
+        fd.assemble(Courant_num_form, tensor=Courant_num)
+        Courant.interpolate(Courant_num/Courant_denom)
+
+        file_sw.write(un, etan, qn, Courant)
         tdump -= dumpt
     stepcount += 1
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)

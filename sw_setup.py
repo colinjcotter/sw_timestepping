@@ -224,3 +224,14 @@ qparams = {'ksp_type':'preonly',
            "pc_factor_mat_solver_type": "superlu_dist"}
 qsolver = fd.LinearVariationalSolver(vprob,
                                      solver_parameters=qparams)
+
+# Courant number bits
+DG0 = fd.FunctionSpace(mesh, "DG", 0)
+One = fd.Function(DG0).assign(1.0)
+unn = 0.5*(fd.inner(-u0, n) + abs(fd.inner(-u0, n))) # gives fluxes *into* cell only
+vdg = fd.TestFunction(DG0)
+Courant_num = fd.Function(DG0, name="Courant numerator")
+Courant_num_form = dT*both(unn*vdg)*fd.dS
+Courant_denom = fd.Function(DG0, name="Courant denominator")
+fd.assemble(One*vdg*fd.dx, tensor=Courant_denom)
+Courant = fd.Function(DG0, name="Courant")
