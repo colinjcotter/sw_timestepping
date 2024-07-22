@@ -39,9 +39,9 @@ uh, hh = fd.split(Uhat)
 
 nonlinear = (
     fd.inner(v, u1 - uh)*dx
-    + dT*u_op(v, uh, hh, system="nonlinear")
+    + dT*u_op(v, uh, hh, system="nonlinear", vector_invariant=False)
     + phi*(h1 - hh)*dx
-    + dT*h_op(phi, uh, hh, system="nonlinear")
+    + dT*h_op(phi, uh, hh, system="nonlinear", vector_invariant=False)
 )
 
 mass = {

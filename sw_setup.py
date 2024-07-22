@@ -111,13 +111,20 @@ def both(u):
 dT = fd.Constant(0.)
 dS = fd.dS
 
-def u_op(v, u, h, system="full"):
+def u_op(v, u, h, system="full", vector_invariant=True):
     Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
     K = 0.5*fd.inner(u, u)
-    nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
-                  + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
-                             both(Upwind*u))*dS
-                  - fd.div(v)*g*K*dx)
+    if vector_invariant:
+        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
+                      + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
+                                 both(Upwind*u))*dS
+                     - fd.div(v)*g*K*dx)
+    else:
+        nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
+        un = 0.5*(fd.dot(u, n) + abs(fd.dot(u, n)))
+        nonlinear += fd.dot(fd.jump(v),
+                            (un('+')*u('+') - un('-')*u('-')))*dS
+
     linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*(h+b)*dx
     if system == "linear":
         return linear
