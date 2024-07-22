@@ -38,9 +38,9 @@ Uhat = fd.Function(W) # - working memory
 uh, hh = fd.split(Uhat)
 
 nonlinear = (
-    fd.inner(v, u1 - u0)*dx
+    fd.inner(v, u1 - uh)*dx
     + dT*u_op(v, uh, hh, system="nonlinear")
-    + phi*(h1 - h0)*dx
+    + phi*(h1 - hh)*dx
     + dT*h_op(phi, uh, hh, system="nonlinear")
 )
 
