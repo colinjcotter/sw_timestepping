@@ -2,6 +2,7 @@ import firedrake as fd
 #get command arguments
 from petsc4py import PETSc
 
+
 import mg
 import argparse
 
@@ -16,6 +17,8 @@ parser.add_argument('--degree', type=int, default=1, help='Degree of finite elem
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
 parser.add_argument('--filename', type=str, default='w5')
+parser.add_argument('--checkpnt_dumpt', type=float, default=24, help='Dump time in hours. Default 24.')
+
 
 args = parser.parse_known_args()
 args = args[0]
@@ -62,6 +65,8 @@ for mesh in mh:
     xf.interpolate(R0*xf/r)
     mesh.init_cell_orientations(x)
 mesh = mh[-1]
+#mesh = fd.Mesh(mesh.coordinates, name="meshA") # does not work!!!
+
 R0 = fd.Constant(R0)
 cx, cy, cz = fd.SpatialCoordinate(mesh)
 
@@ -139,7 +144,8 @@ def h_op(phi, u, h, system="full"):
 sparameters = {
     "snes_monitor": None,
     "mat_type": "matfree",
-    "ksp_type": "fgmres",
+    "ksp_type": "gmres",
+    "snes_ksp_ew": None,
     "ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
     "ksp_atol": 1e-8,
@@ -148,8 +154,9 @@ sparameters = {
     "pc_type": "mg",
     "pc_mg_cycle_type": "v",
     "pc_mg_type": "multiplicative",
-    "mg_levels_ksp_type": "gmres",
-    "mg_levels_ksp_max_it": 3,
+    "mg_levels_ksp_type": "richardson",
+    "mg_levels_ksp_max_it": 2,
+    "mg_levels_ksp_richardson_scale": 0.95,
     #"mg_levels_ksp_convergence_test": "skip",
     "mg_levels_pc_type": "python",
     "mg_levels_pc_python_type": "firedrake.PatchPC",

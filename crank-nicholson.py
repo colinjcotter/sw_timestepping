@@ -28,6 +28,13 @@ tmax = 60.*60.*hmax
 hdump = args.dumpt
 dumpt = hdump*60.*60.
 tdump = 0.
+
+hdump1 = args.checkpnt_dumpt
+dumpt1 = hdump1*60.*60.
+tdump1 = 0.
+
+
+
 t = 0.
 PETSc.Sys.Print('tmax', tmax, 'dt', dt)
 
@@ -46,6 +53,7 @@ while t < tmax + 0.5*dt:
     PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
     t += dt
     tdump += dt
+    tdump1 += dt
 
     with PETSc.Log.Event("time solver"):
         nsolver.solve()
@@ -60,6 +68,19 @@ while t < tmax + 0.5*dt:
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
+
+    if tdump1 > dumpt1 - dt*0.5:
+        etan.assign(h0 - H + b)
+        un.assign(u0)
+        qsolver.solve()
+        with fd.CheckpointFile("example2.h5", 'w') as afile:
+            afile.save_mesh(mesh)  # optional
+            afile.save_function(un)
+            afile.save_function(etan)
+            afile.save_function(qn)
+        print('\nCheckpointing!!!')
+        tdump1 -= dumpt1
+
     stepcount += 1
     itcount += nsolver.snes.getLinearSolveIterations()
 PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
