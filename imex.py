@@ -104,11 +104,11 @@ while t < tmax + 0.5*dt:
     with PETSc.Log.Event("explicit solver"):
         Uhat.assign(Un)
         expsolver.solve()  #  Unp1 contains U_1 = Un + h*f(Un)
-        Un.assign(Unp1)
+        Uhat.assign(Unp1)
         expsolver.solve()  #  Unp1 contains U_2 = U_1 + h*f(U_1)
-        Un.assign(.75*Uhat + 0.25*Unp1)  # U_2 -> 0.75*Un + 0.25*U_2
+        Uhat.assign(.75*Uhat + 0.25*Unp1)  # U_2 -> 0.75*Un + 0.25*U_2
         expsolver.solve()  #  Unp1 contains U_3 = U_2 + h*f(U_2)
-        Un.assign(Uhat/3 + 2*Unp1/3)
+        Un.assign(Un/3 + 2*Unp1/3)
 
     # half an implicit step
     with PETSc.Log.Event("implicit solver"):
