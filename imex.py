@@ -109,7 +109,7 @@ while t < tmax + 0.5*dt:
         expsolver.solve()  #  Unp1 contains Un + h*f(y_0)
         Uhat.assign(Un + Unp1) #  Uhat contains yhat = Un + h*f(y_0)
         expsolver.solve()  #  Unp1 contains Un + h*f(yhat)
-        Unp1.assign( (Un + Unp1)/2 )
+        Un.assign((Un + Unp1)/2)
 
     # half an implicit step
     with PETSc.Log.Event("implicit solver"):
