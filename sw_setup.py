@@ -111,17 +111,19 @@ def both(u):
 dT = fd.Constant(0.)
 dS = fd.dS
 
-def u_op(v, u, h, system="full", vector_invariant=True):
-    Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
-    K = 0.5*fd.inner(u, u)
+def u_op(v, u, h, system="full", vector_invariant=True, ubar=None):
+    if not ubar:
+        ubar = u
+    Upwind = 0.5 * (fd.sign(fd.dot(ubar, n)) + 1)
+    K = 0.5*fd.inner(u, ubar)
     if vector_invariant:
-        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
+        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), ubar)*dx
                       + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
-                                 both(Upwind*u))*dS
+                                 both(Upwind*ubar))*dS
                      - fd.div(v)*g*K*dx)
     else:
-        nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
-        un = 0.5*(fd.dot(u, n) + abs(fd.dot(u, n)))
+        nonlinear = -fd.inner(fd.div(fd.outer(v, ubar)), u)*fd.dx
+        un = 0.5*(fd.dot(ubar, n) + abs(fd.dot(ubar, n)))
         nonlinear += fd.dot(fd.jump(v),
                             (un('+')*u('+') - un('-')*u('-')))*dS
 
@@ -132,12 +134,15 @@ def u_op(v, u, h, system="full", vector_invariant=True):
         return nonlinear
     return linear + nonlinear
 
-def h_op(phi, u, h, system="full"):
+def h_op(phi, u, h, system="full", ubar=None):
+    if not ubar:
+        ubar = u
+    
     if system == "linear":
         return H*fd.div(u)*phi*dx
-    uup = 0.5 * (fd.dot(u, n) + abs(fd.dot(u, n)))
+    uup = 0.5 * (fd.dot(ubar, n) + abs(fd.dot(ubar, n)))
     if system == "nonlinear":
-        return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
+        return (- fd.inner(fd.grad(phi), ubar)*(h-H)*dx
                 + fd.jump(phi)*(uup('+')*(h('+')-H)
                                 - uup('-')*(h('-')-H))*dS
                 )
