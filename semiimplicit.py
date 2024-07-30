@@ -62,8 +62,9 @@ expprob = fd.NonlinearVariationalProblem(explicit_half, Unp1)
 expsolver = fd.NonlinearVariationalSolver(expprob, options_prefix="linear_exp",
                                           solver_parameters=massparams)
 
-uh = (u1 + u0)/2
-hh = (h1 + h0)/2
+theta = fd.Constant(0.55)
+uh = (theta*u1 + (1-theta)*u0)/2
+hh = (theta*h1 + (1-theta)*h0)/2
 ubar = fd.Function(V1)
 
 nonlinear = (
@@ -111,43 +112,67 @@ file_sw.write(un, etan, qn, Courant)
 
 itcount = 0
 stepcount = 0
+
+ubar_scheme = "iterated"
+
 while t < tmax + 0.5*dt:
     PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
     t += dt
     tdump += dt
 
-    # preliminary half timestep to get half value for ubar
-    # half an advection step
-    ubar.assign(0.5*u0)
-    Un_star.assign(Un)
-    with PETSc.Log.Event("advection step"):
-        nonlinearsolver.solve()
-    # half an implicit step
-    Un_star.assign(Unp1)
-    with PETSc.Log.Event("implicit solver"):
-        imsolver.solve()
+    if ubar_scheme == "half":
+        # preliminary half timestep to get half value for ubar
+        # half an advection step
+        ubar.assign(0.5*u0)
+        Un_star.assign(Un)
+        with PETSc.Log.Event("advection step"):
+            nonlinearsolver.solve()
+        # half an implicit step
+        Un_star.assign(Unp1)
+        with PETSc.Log.Event("implicit solver"):
+            imsolver.solve()
 
-    # full timestep using that ubar value
-    ubar.assign(u1)
-    # half an explicit step
-    Un_star.assign(Un)
-    with PETSc.Log.Event("explicit solver"):
-        expsolver.solve()
-    # a full advection step
-    Un_star.assign(Unp1)
-    with PETSc.Log.Event("advection step"):
-        nonlinearsolver.solve()
-    # half an implicit step
-    Un_star.assign(Unp1)
-    with PETSc.Log.Event("implicit solver"):
-        imsolver.solve()
-    Un.assign(Unp1)
+        # full timestep using that ubar value
+        ubar.assign(u1)
+        # half an explicit step
+        Un_star.assign(Un)
+        with PETSc.Log.Event("explicit solver"):
+            expsolver.solve()
+        # a full advection step
+        Un_star.assign(Unp1)
+        with PETSc.Log.Event("advection step"):
+            nonlinearsolver.solve()
+        # half an implicit step
+        Un_star.assign(Unp1)
+        with PETSc.Log.Event("implicit solver"):
+            imsolver.solve()
+        Un.assign(Unp1)
+    elif ubar_scheme == "iterated":
+        ubar.assign(u0)
+        for i in range(4):
+            # half an explicit step
+            Un_star.assign(Un)
+            with PETSc.Log.Event("explicit solver"):
+                expsolver.solve()
+            # a full advection step
+            Un_star.assign(Unp1)
+            with PETSc.Log.Event("advection step"):
+                nonlinearsolver.solve()
+            # half an implicit step
+            Un_star.assign(Unp1)
+            with PETSc.Log.Event("implicit solver"):
+                imsolver.solve()
+            ubar.assign((u0 + u1)/2)
+        Un.assign(Unp1)
 
     if args.one_step:
         t = tmax + dt
 
     print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
-
+    fd.assemble(Courant_num_form, tensor=Courant_num)
+    Courant.interpolate(Courant_num/Courant_denom)
+    print(Courant.dat.data[:].max())
+    
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
         un.assign(u0)
