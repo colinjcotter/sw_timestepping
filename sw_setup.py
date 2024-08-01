@@ -211,7 +211,7 @@ else:
     "ksp": {
         "ksp_type": "richardson",
         "ksp_max_it": 3,
-        "ksp_richardson_scale": 0.90,
+        "ksp_richardson_scale": 0.95,
         "pc_type": "python",
         "pc_python_type": "firedrake.PatchPC",
         "patch_pc_patch_save_operators": True,
