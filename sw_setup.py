@@ -17,6 +17,8 @@ parser.add_argument('--coords_degree', type=int, default=1, help='Degree of poly
 parser.add_argument('--degree', type=int, default=1, help='Degree of finite element space (the DG space).')
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
+parser.add_argument('--mg', action='store_true', help='Use multigrid.')
+parser.add_argument('--siits', type=int, default=4, help='Number of semiimplicit nonlinear iterations. Default 4.')
 parser.add_argument('--filename', type=str, default='w5')
 
 
@@ -29,44 +31,52 @@ if args.show_args:
 # some domain, parameters and FS setup
 R0 = 6371220.
 H = fd.Constant(5960.)
-base_level = args.base_level
-nrefs = args.ref_level - base_level
 name = args.filename
 deg = args.coords_degree
 distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMeshOverlapType.VERTEX, 2)}
 
-def high_order_mesh_hierarchy(mh, degree, R0):
-    meshes = []
-    for m in mh:
-        X = fd.VectorFunctionSpace(m, "Lagrange", degree)
-        new_coords = fd.assemble(fd.interpolate(m.coordinates, X))
-        x, y, z = new_coords
-        r = (x**2 + y**2 + z**2)**0.5
-        new_coords = fd.assemble(fd.interpolate(R0*new_coords/r, X))
-        new_mesh = fd.Mesh(new_coords)
-        meshes.append(new_mesh)
+if args.mg:
+    base_level = args.base_level
+    nrefs = args.ref_level - base_level
 
-    return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
-                            mh.fine_to_coarse_cells,
-                            mh.refinements_per_level, mh.nested)
+    def high_order_mesh_hierarchy(mh, degree, R0):
+        meshes = []
+        for m in mh:
+            X = fd.VectorFunctionSpace(m, "Lagrange", degree)
+            new_coords = fd.assemble(fd.interpolate(m.coordinates, X))
+            x, y, z = new_coords
+            r = (x**2 + y**2 + z**2)**0.5
+            new_coords = fd.assemble(fd.interpolate(R0*new_coords/r, X))
+            new_mesh = fd.Mesh(new_coords)
+            meshes.append(new_mesh)
 
-basemesh = fd.IcosahedralSphereMesh(radius=R0,
-                                    refinement_level=base_level,
-                                    degree=1,
+        return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
+                                mh.fine_to_coarse_cells,
+                                mh.refinements_per_level, mh.nested)
+
+    basemesh = fd.IcosahedralSphereMesh(radius=R0,
+                                        refinement_level=base_level,
+                                        degree=1,
+                                        distribution_parameters = distribution_parameters)
+    del basemesh._radius
+    mh = fd.MeshHierarchy(basemesh, nrefs)
+    mh = high_order_mesh_hierarchy(mh, deg, R0)
+    for mesh in mh:
+        xf = mesh.coordinates
+        mesh.transfer_coordinates = fd.Function(xf)
+        x = fd.SpatialCoordinate(mesh)
+        r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
+        xf.interpolate(R0*xf/r)
+        mesh.init_cell_orientations(x)
+    mesh = mh[-1]
+else:
+    mesh = fd.IcosahedralSphereMesh(radius=R0,
+                                    refinement_level=args.ref_level,
+                                    degree=deg,
                                     distribution_parameters = distribution_parameters)
-del basemesh._radius
-mh = fd.MeshHierarchy(basemesh, nrefs)
-mh = high_order_mesh_hierarchy(mh, deg, R0)
-for mesh in mh:
-    xf = mesh.coordinates
-    mesh.transfer_coordinates = fd.Function(xf)
     x = fd.SpatialCoordinate(mesh)
-    r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
-    xf.interpolate(R0*xf/r)
     mesh.init_cell_orientations(x)
-mesh = mh[-1]
-#mesh = fd.Mesh(mesh.coordinates, name="meshA") # does not work!!!
-
+    
 R0 = fd.Constant(R0)
 cx, cy, cz = fd.SpatialCoordinate(mesh)
 
@@ -111,17 +121,19 @@ def both(u):
 dT = fd.Constant(0.)
 dS = fd.dS
 
-def u_op(v, u, h, system="full", vector_invariant=True):
-    Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
-    K = 0.5*fd.inner(u, u)
+def u_op(v, u, h, system="full", vector_invariant=True, ubar=None):
+    if not ubar:
+        ubar = u
+    Upwind = 0.5 * (fd.sign(fd.dot(ubar, n)) + 1)
+    K = 0.5*fd.inner(u, ubar)
     if vector_invariant:
-        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
+        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), ubar)*dx
                       + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
-                                 both(Upwind*u))*dS
+                                 both(Upwind*ubar))*dS
                      - fd.div(v)*g*K*dx)
     else:
-        nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
-        un = 0.5*(fd.dot(u, n) + abs(fd.dot(u, n)))
+        nonlinear = -fd.inner(fd.div(fd.outer(v, ubar)), u)*fd.dx
+        un = 0.5*(fd.dot(ubar, n) + abs(fd.dot(ubar, n)))
         nonlinear += fd.dot(fd.jump(v),
                             (un('+')*u('+') - un('-')*u('-')))*dS
 
@@ -132,56 +144,88 @@ def u_op(v, u, h, system="full", vector_invariant=True):
         return nonlinear
     return linear + nonlinear
 
-def h_op(phi, u, h, system="full"):
+def h_op(phi, u, h, system="full", ubar=None):
+    if not ubar:
+        ubar = u
+    
     if system == "linear":
         return H*fd.div(u)*phi*dx
-    uup = 0.5 * (fd.dot(u, n) + abs(fd.dot(u, n)))
+    uup = 0.5 * (fd.dot(ubar, n) + abs(fd.dot(ubar, n)))
     if system == "nonlinear":
-        return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
+        return (- fd.inner(fd.grad(phi), ubar)*(h-H)*dx
                 + fd.jump(phi)*(uup('+')*(h('+')-H)
                                 - uup('-')*(h('-')-H))*dS
                 )
-    return (- fd.inner(fd.grad(phi), u)*h*dx
+    return (- fd.inner(fd.grad(phi), ubar)*h*dx
             + fd.jump(phi)*(uup('+')*h('+')
                             - uup('-')*h('-'))*dS
             )
 
 # monolithic solver options
 
-sparameters = {
+if args.mg:
+    sparameters = {
+        "snes_monitor": None,
+        "mat_type": "matfree",
+        "ksp_type": "gmres",
+        "ksp_monitor_true_residual": None,
+        "ksp_converged_reason": None,
+        "ksp_atol": 1e-8,
+        "ksp_rtol": 1e-8,
+        "ksp_max_it": 400,
+        "pc_type": "mg",
+        "pc_mg_cycle_type": "v",
+        "pc_mg_type": "multiplicative",
+        "mg_levels_ksp_type": "richardson",
+        "mg_levels_ksp_max_it": 2,
+        "mg_levels_ksp_richardson_scale": 0.95,
+        #"mg_levels_ksp_convergence_test": "skip",
+        "mg_levels_pc_type": "python",
+        "mg_levels_pc_python_type": "firedrake.PatchPC",
+        "mg_levels_patch_pc_patch_save_operators": True,
+        "mg_levels_patch_pc_patch_partition_of_unity": True,
+        "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
+        "mg_levels_patch_pc_patch_construct_dim": 0,
+        "mg_levels_patch_pc_patch_construct_type": "star",
+        "mg_levels_patch_pc_patch_local_type": "additive",
+        "mg_levels_patch_pc_patch_precompute_element_tensors": True,
+        "mg_levels_patch_pc_patch_symmetrise_sweep": False,
+        "mg_levels_patch_sub_ksp_type": "preonly",
+        "mg_levels_patch_sub_pc_type": "lu",
+        "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+        "mg_coarse_pc_type": "python",
+        "mg_coarse_pc_python_type": "firedrake.AssembledPC",
+        "mg_coarse_assembled_pc_type": "lu",
+        "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
+    }
+else:
+    sparameters = {
     "snes_monitor": None,
     "mat_type": "matfree",
     "ksp_type": "gmres",
-    "snes_ksp_ew": None,
-    "ksp_monitor_true_residual": None,
+    #"ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
     "ksp_atol": 1e-8,
     "ksp_rtol": 1e-8,
     "ksp_max_it": 400,
-    "pc_type": "mg",
-    "pc_mg_cycle_type": "v",
-    "pc_mg_type": "multiplicative",
-    "mg_levels_ksp_type": "richardson",
-    "mg_levels_ksp_max_it": 2,
-    "mg_levels_ksp_richardson_scale": 0.95,
-    #"mg_levels_ksp_convergence_test": "skip",
-    "mg_levels_pc_type": "python",
-    "mg_levels_pc_python_type": "firedrake.PatchPC",
-    "mg_levels_patch_pc_patch_save_operators": True,
-    "mg_levels_patch_pc_patch_partition_of_unity": True,
-    "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
-    "mg_levels_patch_pc_patch_construct_dim": 0,
-    "mg_levels_patch_pc_patch_construct_type": "star",
-    "mg_levels_patch_pc_patch_local_type": "additive",
-    "mg_levels_patch_pc_patch_precompute_element_tensors": True,
-    "mg_levels_patch_pc_patch_symmetrise_sweep": False,
-    "mg_levels_patch_sub_ksp_type": "preonly",
-    "mg_levels_patch_sub_pc_type": "lu",
-    "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
-    "mg_coarse_pc_type": "python",
-    "mg_coarse_pc_python_type": "firedrake.AssembledPC",
-    "mg_coarse_assembled_pc_type": "lu",
-    "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
+    "pc_type": "ksp",
+    "ksp": {
+        "ksp_type": "richardson",
+        "ksp_max_it": 3,
+        "ksp_richardson_scale": 0.95,
+        "pc_type": "python",
+        "pc_python_type": "firedrake.PatchPC",
+        "patch_pc_patch_save_operators": True,
+        "patch_pc_patch_partition_of_unity": True,
+        "patch_pc_patch_sub_mat_type": "seqdense",
+        "patch_pc_patch_construct_dim": 0,
+        "patch_pc_patch_construct_type": "star",
+        "patch_pc_patch_local_type": "additive",
+        "patch_pc_patch_precompute_element_tensors": True,
+        "patch_pc_patch_symmetrise_sweep": False,
+        "patch_sub_ksp_type": "preonly",
+        "patch_sub_pc_type": "lu",
+        "patch_sub_pc_factor_shift_type": "nonzero"}
 }
 
 vtransfer = mg.ManifoldTransfer()

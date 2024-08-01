@@ -85,6 +85,8 @@ while t < tmax - 0.5*dt:
         file_sw.write(un, etan, qn)
         tdump -= dumpt
 
+    PETSc.Sys.Print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
+        
     if tdump1 > dumpt1 - dt*0.5:
         print('Ckp dumpt at time (hours, days):', t/3600, t/3600/24)
         etan.assign(h0 - H + b)
