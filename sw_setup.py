@@ -17,6 +17,7 @@ parser.add_argument('--degree', type=int, default=1, help='Degree of finite elem
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
 parser.add_argument('--mg', action='store_true', help='Use multigrid.')
+parser.add_argument('--siits', type=int, default=4, help='Number of semiimplicit nonlinear iterations. Default 4.')
 parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpnt_dumpt', type=float, default=24, help='Dump time in hours. Default 24.')
 
@@ -155,7 +156,7 @@ def h_op(phi, u, h, system="full", ubar=None):
                 + fd.jump(phi)*(uup('+')*(h('+')-H)
                                 - uup('-')*(h('-')-H))*dS
                 )
-    return (- fd.inner(fd.grad(phi), u)*h*dx
+    return (- fd.inner(fd.grad(phi), ubar)*h*dx
             + fd.jump(phi)*(uup('+')*h('+')
                             - uup('-')*h('-'))*dS
             )
