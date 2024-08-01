@@ -41,7 +41,7 @@ nonlinear = (
     fd.inner(v, u1 - uh)*dx
     + dT*u_op(v, uh, hh, system="nonlinear", vector_invariant=False)
     + phi*(h1 - hh)*dx
-    + dT*h_op(phi, uh, hh, system="nonlinear", vector_invariant=False)
+    + dT*h_op(phi, uh, hh, system="nonlinear")
 )
 
 mass = {
@@ -89,6 +89,11 @@ file_sw.write(un, etan, qn, Courant)
 
 itcount = 0
 stepcount = 0
+
+
+mass_init = fd.assemble(h0*fd.dx)
+energy_init = fd.assemble(0.5 * h0 * fd.inner(u0, u0) * fd.dx + 0.5 * g * (h0 - H + b) ** 2 * fd.dx)
+
 while t < tmax + 0.5*dt:
     PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
     t += dt
@@ -118,7 +123,9 @@ while t < tmax + 0.5*dt:
     if args.one_step:
         t = tmax + dt
 
-    print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
+    print('Mass: ', (fd.assemble(h0 * fd.dx) - mass_init)/mass_init)
+    print('Energy: ', (fd.assemble(0.5 * h0 * fd.inner(u0, u0) * fd.dx + 0.5 * g * (h0 - H + b) ** 2 * fd.dx)
+                      - energy_init)/energy_init)
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
