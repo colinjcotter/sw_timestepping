@@ -41,7 +41,7 @@ nonlinear = (
     fd.inner(v, u1 - uh)*dx
     + dT*u_op(v, uh, hh, system="nonlinear", vector_invariant=False)
     + phi*(h1 - hh)*dx
-    + dT*h_op(phi, uh, hh, system="nonlinear", vector_invariant=False)
+    + dT*h_op(phi, uh, hh, system="nonlinear")
 )
 
 mass = {
@@ -118,7 +118,7 @@ while t < tmax + 0.5*dt:
     if args.one_step:
         t = tmax + dt
 
-    print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
+    PETSc.Sys.Print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
