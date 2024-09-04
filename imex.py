@@ -8,6 +8,8 @@ quarter = fd.Constant(0.25)
 
 u0, h0 = fd.split(Un)
 
+energy_expr = 0.5*(fd.inner(u0, u0)*h0 + g*(h0**2 + h0*b))*fd.dx
+
 linear = (
     fd.inner(v, u1 - u0)*dx
     + quarter*dT*u_op(v, u0, h0, system="linear")
@@ -86,8 +88,9 @@ file_sw.write(un, etan, qn)
 
 itcount = 0
 stepcount = 0
+energy0 = fd.assemble(energy_expr)
 while t < tmax + 0.5*dt:
-    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
+    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t} of {tmax}\n")
     t += dt
     tdump += dt
 
@@ -103,10 +106,10 @@ while t < tmax + 0.5*dt:
     #     = (y_0 + h*f(y_0))/2 + (y_0 + h*f(yhat))/2)
     with PETSc.Log.Event("explicit solver"):
         Uhat.assign(Un)
-        expsolver.solve()  #  Unp1 contains Un + h*f(y_0)
-        Uhat.assign(Un + Unp1) #  Uhat contains yhat = Un + h*f(y_0)
+        expsolver.solve()  #  Unp1 contains Un + h*f(y_0) = yhat
+        Uhat.assign(Unp1) #  Uhat contains yhat
         expsolver.solve()  #  Unp1 contains Un + h*f(yhat)
-        Unp1.assign( (Un + Unp1)/2 )
+        Un.assign( (Uhat + Unp1)/2 )
 
     # half an implicit step
     with PETSc.Log.Event("implicit solver"):
@@ -116,6 +119,9 @@ while t < tmax + 0.5*dt:
     if args.one_step:
         t = tmax + dt
 
+    energy = fd.assemble(energy_expr)
+    PETSc.Sys.Print("relative energy error", (energy-energy0)/energy0)
+
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
         un.assign(u0)
@@ -124,4 +130,3 @@ while t < tmax + 0.5*dt:
         tdump -= dumpt
     stepcount += 1
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
-
