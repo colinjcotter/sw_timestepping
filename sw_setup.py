@@ -112,7 +112,7 @@ def u_op(v, u, h, system="full"):
     nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
                   + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
                              both(Upwind*u))*dS
-                  - fd.div(v)*g*K*dx)
+                  - fd.div(v)*K*dx)
     linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*(h+b)*dx
     if system == "linear":
         return linear
