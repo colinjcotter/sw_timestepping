@@ -130,3 +130,7 @@ while t < tmax + 0.5*dt:
         tdump -= dumpt
     stepcount += 1
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
+
+etan.assign(h0 - H + b)
+un.assign(u0)
+checkpoint_output(un, etan)

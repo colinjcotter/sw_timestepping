@@ -4,6 +4,5 @@ from sw_setup import *
 if args.checkpointfile == 'none':
     raise ValueError('Need to specify a checkpoint file.')
 
-mesh.name = "errormesh"
 with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
     afile.save_mesh(mesh)

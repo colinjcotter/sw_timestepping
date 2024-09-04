@@ -1,6 +1,7 @@
 import firedrake as fd
 #get command arguments
 from petsc4py import PETSc
+from firedrake.__future__ import interpolate
 
 import mg
 import argparse
@@ -42,7 +43,7 @@ def high_order_mesh_hierarchy(mh, degree, R0):
         x, y, z = new_coords
         r = (x**2 + y**2 + z**2)**0.5
         new_coords = fd.Function(X).interpolate(R0*new_coords/r)
-        new_mesh = fd.Mesh(new_coords)
+        new_mesh = fd.Mesh(new_coords, name="errormesh")
         meshes.append(new_mesh)
 
     return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
@@ -220,21 +221,21 @@ qparams = {'ksp_type':'preonly',
 qsolver = fd.LinearVariationalSolver(vprob,
                                      solver_parameters=qparams)
 
-def checkpoint_output(u_out, h_out):
+def checkpoint_output(u_out, eta_out):
     if args.checkpointfile == 'none':
         return
     if args.checkpointfunctionname == 'none':
         PETSc.Sys.Print("Checkpoint file specified but function name not specified.")
     with fd.CheckpointFile(args.checkpointfile, 'r') as afile:
         outmesh = afile.load_mesh("errormesh")
-    V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
+    V1 = fd.VectorFunctionSpace(mesh, "DG", degree+1)
     V2 = fd.FunctionSpace(mesh, "DG", degree)
 
-    u_write = Function(V1).interpolate(u_out,
-                                       args.checkpointfunctionname+'_u')
-    h_write = Function(V2).interpolate(h_out,
-                                       args.checkpointfunctionname+'_h')
+    u_write = fd.assemble(fd.interpolate(u_out, V1),
+                          name=args.checkpointfunctionname+'_u')
+    eta_write = fd.assemble(fd.interpolate(eta_out, V2),
+                          name=args.checkpointfunctionname+'_h')
 
     with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
         afile.save_function(u_write)
-        afile.save_function(h_write)
+        afile.save_function(eta_write)
