@@ -16,6 +16,8 @@ parser.add_argument('--degree', type=int, default=1, help='Degree of finite elem
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
 parser.add_argument('--filename', type=str, default='w5')
+parser.add_argument('--checkpointfile', type=str, default='none')
+parser.add_argument('--checkpointfunctionname', type=str, default='none')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -217,3 +219,22 @@ qparams = {'ksp_type':'preonly',
            "pc_factor_mat_solver_type": "superlu_dist"}
 qsolver = fd.LinearVariationalSolver(vprob,
                                      solver_parameters=qparams)
+
+def checkpoint_output(u_out, h_out):
+    if args.checkpointfile == 'none':
+        return
+    if args.checkpointfunctionname == 'none':
+        PETSc.Sys.Print("Checkpoint file specified but function name not specified.")
+    with fd.CheckpointFile(args.checkpointfile, 'r') as afile:
+        outmesh = afile.load_mesh("errormesh")
+    V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
+    V2 = fd.FunctionSpace(mesh, "DG", degree)
+
+    u_write = Function(V1).interpolate(u_out,
+                                       args.checkpointfunctionname+'_u')
+    h_write = Function(V2).interpolate(h_out,
+                                       args.checkpointfunctionname+'_h')
+
+    with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
+        afile.save_function(u_write)
+        afile.save_function(h_write)

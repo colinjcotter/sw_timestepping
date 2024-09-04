@@ -90,7 +90,7 @@ itcount = 0
 stepcount = 0
 energy0 = fd.assemble(energy_expr)
 while t < tmax + 0.5*dt:
-    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t} of {tmax}\n")
+    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}, {t/tmax} of total\n")
     t += dt
     tdump += dt
 
