@@ -1,4 +1,5 @@
 from sw_setup import *
+#  ARK3(2,2,2) scheme from Giraldo et al (2013)
 
 Unp1 = fd.Function(W)
 u1, h1 = fd.split(Unp1)
@@ -9,15 +10,6 @@ quarter = fd.Constant(0.25)
 u0, h0 = fd.split(Un)
 
 energy_expr = 0.5*(fd.inner(u0, u0)*h0 + g*(h0**2 + h0*b))*fd.dx
-
-linear = (
-    fd.inner(v, u1 - u0)*dx
-    + quarter*dT*u_op(v, u0, h0, system="linear")
-    + quarter*dT*u_op(v, u1, h1, system="linear")
-    + phi*(h1 - h0)*dx
-    + quarter*dT*h_op(phi, u0, h0, system="linear")
-    + quarter*dT*h_op(phi, u1, h1, system="linear")
-)
 
 lparams = {
     "mat_type": "matfree",
@@ -32,19 +24,52 @@ lparams = {
                       "pc_factor_mat_solver_type":'superlu_dist'
                       }}
 
-improb = fd.NonlinearVariationalProblem(linear, Unp1)
-imsolver = fd.NonlinearVariationalSolver(improb, options_prefix="linear",
-                                        solver_parameters=lparams)
+# stage functions
+Uk2 = fd.Function(W)
+Uk3 = fd.Function(W)
 
-Uhat = fd.Function(W) # - working memory
-uh, hh = fd.split(Uhat)
+# some coefficients
+gamma = fd.Constant(1. - 0.5**0.5)
+alpha = fd.Constant((3 + 2*2.**0.5)/6)
+delta = fd.Constant(0.5*0.5**0.5)
 
-nonlinear = (
-    fd.inner(v, u1 - u0)*dx
-    + dT*u_op(v, uh, hh, system="nonlinear")
-    + phi*(h1 - h0)*dx
-    + dT*h_op(phi, uh, hh, system="nonlinear")
+uk1, hk1 = fd.split(Un)  #  Uk1 is just Un for ARK2(2,3,2)
+uk2, hk2 = fd.split(Uk2)  #  Uk1 is just Un for ARK2(2,3,2)
+uk3, hk3 = fd.split(Uk3)  #  Uk1 is just Un for ARK2(2,3,2)
+
+k2_eqn = (
+    fd.inner(v, uk2 - u0)*dx
+    + 2*gamma*dT*u_op(v, uk1, hk1, system="nonlinear")
+    + gamma*dT*u_op(v, uk1, hk1, system="linear")
+    + gamma*dT*u_op(v, uk2, hk2, system="linear")
+    + phi*(hk2 - h0)*dx
+    + 2*gamma*dT*h_op(phi, uk1, hk1, system="nonlinear")
+    + gamma*dT*h_op(phi, uk1, hk1, system="linear")
+    + gamma*dT*h_op(phi, uk2, hk2, system="linear")
 )
+
+k2prob = fd.NonlinearVariationalProblem(k2_eqn, Uk2)
+k2solver = fd.NonlinearVariationalSolver(k2prob, options_prefix="k2",
+                                         solver_parameters=lparams)
+
+k3_eqn = (
+    fd.inner(v, uk3 - u0)*dx
+    + (1-alpha)*dT*u_op(v, uk1, hk1, system="nonlinear")
+    + alpha*dT*u_op(v, uk2, hk2, system="nonlinear")
+    + delta*dT*u_op(v, uk1, hk1, system="linear")
+    + delta*dT*u_op(v, uk2, hk2, system="linear")
+    + gamma*dT*u_op(v, uk3, hk3, system="linear")
+    + phi*(hk3 - h0)*dx
+    + (1-alpha)*dT*h_op(phi, uk1, hk1, system="nonlinear")
+    + alpha*dT*h_op(phi, uk2, hk2, system="nonlinear")
+    + delta*dT*h_op(phi, uk1, hk1, system="linear")
+    + delta*dT*h_op(phi, uk2, hk2, system="linear")
+    + gamma*dT*h_op(phi, uk3, hk3, system="linear")
+)
+
+k3prob = fd.NonlinearVariationalProblem(k3_eqn, Uk3)
+k3solver = fd.NonlinearVariationalSolver(k3prob, options_prefix="k3",
+                                         solver_parameters=lparams)
 
 mass = {
     "ksp_type": "gmres",
@@ -53,18 +78,32 @@ mass = {
 }
 
 massparams = {
-    "snes_lag_jacobian": -2,
-    "snes_lag_jacobian_persists": None,
-    "snes_type": "ksponly",
     "ksp_type": "gmres",
     "pc_type": "fieldsplit",
     "fieldsplit_0": mass,
     "fieldsplit_1": mass
 }
 
-expprob = fd.NonlinearVariationalProblem(nonlinear, Unp1)
-expsolver = fd.NonlinearVariationalSolver(expprob, options_prefix="exp",
-                                          solver_parameters=mass)
+unp1_eqn = (
+    fd.inner(v, u1 - u0)*dx
+    + delta*dT*u_op(v, uk1, hk1, system="nonlinear")
+    + delta*dT*u_op(v, uk2, hk2, system="nonlinear")
+    + gamma*dT*u_op(v, uk3, hk3, system="nonlinear")
+    + delta*dT*u_op(v, uk1, hk1, system="linear")
+    + delta*dT*u_op(v, uk2, hk2, system="linear")
+    + gamma*dT*u_op(v, uk3, hk3, system="linear")
+    + phi*(h1 - h0)*dx
+    + delta*dT*h_op(phi, uk1, hk1, system="nonlinear")
+    + delta*dT*h_op(phi, uk2, hk2, system="nonlinear")
+    + gamma*dT*h_op(phi, uk3, hk3, system="nonlinear")
+    + delta*dT*h_op(phi, uk1, hk1, system="linear")
+    + delta*dT*h_op(phi, uk2, hk2, system="linear")
+    + gamma*dT*h_op(phi, uk3, hk3, system="linear")
+)
+
+unp1prob = fd.NonlinearVariationalProblem(unp1_eqn, Unp1)
+unp1solver = fd.NonlinearVariationalSolver(unp1prob, options_prefix="unp1",
+                                           solver_parameters=massparams)
 
 Unp1.assign(Un)
 
@@ -94,28 +133,11 @@ while t < tmax + 0.5*dt:
     t += dt
     tdump += dt
 
-    # half an implicit step
-    with PETSc.Log.Event("implicit solver"):
-        imsolver.solve()
-        Un.assign(Unp1)
+    k2solver.solve()
+    k3solver.solve()
+    unp1solver.solve()
+    Un.assign(Unp1)
 
-    # a full explicit step using
-    # heun scheme
-    # yhat = y_0 + hf(y_0)
-    # y_1 = y_0 + h/2*(f(y_0) + f(yhat))
-    #     = (y_0 + h*f(y_0))/2 + (y_0 + h*f(yhat))/2)
-    with PETSc.Log.Event("explicit solver"):
-        Uhat.assign(Un)
-        expsolver.solve()  #  Unp1 contains Un + h*f(y_0) = yhat
-        Uhat.assign(Unp1) #  Uhat contains yhat
-        expsolver.solve()  #  Unp1 contains Un + h*f(yhat)
-        Un.assign( (Uhat + Unp1)/2 )
-
-    # half an implicit step
-    with PETSc.Log.Event("implicit solver"):
-        imsolver.solve()
-        Un.assign(Unp1)
-        
     if args.one_step:
         t = tmax + dt
 
