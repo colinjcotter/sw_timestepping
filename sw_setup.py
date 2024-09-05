@@ -19,9 +19,12 @@ parser.add_argument('--one_step', action='store_true', help='Do one timestep and
 parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--checkpointfunctionname', type=str, default='none')
+parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form..')
 
 args = parser.parse_known_args()
 args = args[0]
+
+vector_invariant = args.vector_invariant
 
 if args.show_args:
     PETSc.Sys.Print(args)
@@ -112,10 +115,16 @@ dS = fd.dS
 def u_op(v, u, h, system="full"):
     Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
     K = 0.5*fd.inner(u, u)
-    nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
-                  + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
-                             both(Upwind*u))*dS
-                  - fd.div(v)*K*dx)
+    if vector_invariant:
+        nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
+                      + fd.inner(both(perp(n)*fd.inner(v, perp(u))),
+                                 both(Upwind*u))*dS
+                      - fd.div(v)*K*dx)
+    else:
+        nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
+        un = 0.5*(fd.dot(u, n) + abs(fd.dot(u, n)))
+        nonlinear += fd.dot(fd.jump(v),
+                      (un('+')*u('+') - un('-')*u('-')))*dS
     linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*(h+b)*dx
     if system == "linear":
         return linear
