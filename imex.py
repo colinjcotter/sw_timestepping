@@ -126,10 +126,12 @@ qsolver.solve()
 file_sw.write(un, etan, qn)
 
 itcount = 0
-stepcount = 0
 energy0 = fd.assemble(energy_expr)
-while t < tmax + 0.5*dt:
-    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}, {t/tmax} of total\n")
+
+nsteps = tcheck(tmax, dt)
+
+for step in range(nsteps):
+    PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
     t += dt
     tdump += dt
 
@@ -139,7 +141,7 @@ while t < tmax + 0.5*dt:
     Un.assign(Unp1)
 
     if args.one_step:
-        t = tmax + dt
+        step = nsteps-1
 
     energy = fd.assemble(energy_expr)
     PETSc.Sys.Print("relative energy error", (energy-energy0)/energy0)
@@ -150,8 +152,8 @@ while t < tmax + 0.5*dt:
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
-    stepcount += 1
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
+PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", dmax)
+assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
 un.assign(u0)

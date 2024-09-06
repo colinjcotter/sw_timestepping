@@ -18,8 +18,8 @@ parser.add_argument('--show_args', action='store_true', help='Output all the arg
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
 parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpointfile', type=str, default='none')
-parser.add_argument('--checkpointfunctionname', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form..')
+parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -79,7 +79,10 @@ def perp(u):
 
 
 degree = args.degree
-V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
+if args.bdfm:
+    V1 = fd.FunctionSpace(mesh, "BDFM", degree+1)
+else:
+    V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
 V2 = fd.FunctionSpace(mesh, "DG", degree)
 V0 = fd.FunctionSpace(mesh, "CG", degree+2)
 W = fd.MixedFunctionSpace((V1, V2))
@@ -233,18 +236,13 @@ qsolver = fd.LinearVariationalSolver(vprob,
 def checkpoint_output(u_out, eta_out):
     if args.checkpointfile == 'none':
         return
-    if args.checkpointfunctionname == 'none':
-        PETSc.Sys.Print("Checkpoint file specified but function name not specified.")
-    with fd.CheckpointFile(args.checkpointfile, 'r') as afile:
-        outmesh = afile.load_mesh("errormesh")
-    V1 = fd.VectorFunctionSpace(mesh, "DG", degree+1)
-    V2 = fd.FunctionSpace(mesh, "DG", degree)
-
-    u_write = fd.assemble(fd.interpolate(u_out, V1),
-                          name=args.checkpointfunctionname+'_u')
-    eta_write = fd.assemble(fd.interpolate(eta_out, V2),
-                          name=args.checkpointfunctionname+'_h')
 
     with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
-        afile.save_function(u_write)
-        afile.save_function(eta_write)
+        afile.save_function(u_out)
+        afile.save_function(eta_out)
+
+def tcheck(tmax, dt):
+    nsteps = round(tmax/dt)
+    from math import fabs
+    assert fabs(nsteps*dt - tmax) < 1.0e-5, "tmax is not integer multiple of dt"
+    return nsteps

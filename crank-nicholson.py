@@ -41,9 +41,10 @@ qsolver.solve()
 file_sw.write(un, etan, qn)
 
 itcount = 0
-stepcount = 0
-while t < tmax + 0.5*dt:
-    PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
+nsteps = tcheck(tmax, dt)
+
+for step in nsteps:
+    PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
     t += dt
     tdump += dt
 
@@ -52,7 +53,7 @@ while t < tmax + 0.5*dt:
     Un.assign(Unp1)
 
     if args.one_step:
-        t = tmax + dt
+        step = nsteps-1
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
@@ -60,8 +61,11 @@ while t < tmax + 0.5*dt:
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
-    stepcount += 1
     itcount += nsolver.snes.getLinearSolveIterations()
-PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
+PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/nsteps,
                 "dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
+assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
+etan.assign(h0 - H + b)
+un.assign(u0)
+checkpoint_output(un, etan)
