@@ -56,15 +56,11 @@ energy_init = fd.assemble(0.5 * h0 * fd.inner(u0, u0) * fd.dx + 0.5 * g * (h0 - 
 
 while t < tmax - 0.5*dt:
     PETSc.Sys.Print(f"\nTimestep {stepcount} at time {t}\n")
-
-    # print('Check time loop:', t, tmax, tmax + 0.5*dt)
-    print('Progress for tn: ', t/tmax*100,'%')
+    PETSc.Sys.Print('Progress for tn: ', t/tmax*100,'%\n')
 
     t += dt
     tdump += dt
     tdump1 += dt
-
-    print('Progress for tn+1: ', t/tmax*100,'%')
 
     with PETSc.Log.Event("time solver"):
         nsolver.solve()
@@ -73,12 +69,12 @@ while t < tmax - 0.5*dt:
     if args.one_step:
         t = tmax + dt
 
-    print('Mass: ', fd.assemble(h0*fd.dx) - mass_init)
-    print('Energy: ', fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx) - energy_init)
+    PETSc.Sys.Print('Mass: ', fd.assemble(h0*fd.dx) - mass_init)
+    PETSc.Sys.Print('Energy: ', fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx) - energy_init)
 
 
     if tdump > dumpt - dt*0.5:
-        print('Dumpt at time (hours, days):', t/3600, t/3600/24)
+        PETSc.Sys.Print('Dumpt at time (hours, days):', t/3600, t/3600/24)
         etan.assign(h0 - H + b)
         un.assign(u0)
         qsolver.solve()
@@ -88,7 +84,7 @@ while t < tmax - 0.5*dt:
     PETSc.Sys.Print('Energy: ',fd.assemble(0.5*h0*fd.inner(u0, u0)*fd.dx + 0.5*g*(h0-H+b)**2*fd.dx))
         
     if tdump1 > dumpt1 - dt*0.5:
-        print('Ckp dumpt at time (hours, days):', t/3600, t/3600/24)
+        PETSc.Sys.Print('Ckp dumpt at time (hours, days):', t/3600, t/3600/24)
         etan.assign(h0 - H + b)
         un.assign(u0)
         qsolver.solve()
@@ -104,12 +100,3 @@ while t < tmax - 0.5*dt:
 PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/stepcount,
                 "dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
 
-
-etan.assign(h0 - H + b)
-un.assign(u0)
-qsolver.solve()
-with fd.CheckpointFile(name+"_final.h5", 'w') as afile:
-    afile.save_mesh(mesh)  # optional
-    afile.save_function(un)
-    afile.save_function(etan)
-    afile.save_function(qn)
