@@ -17,6 +17,7 @@ parser.add_argument('--degree', type=int, default=1, help='Degree of finite elem
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
 parser.add_argument('--one_step', action='store_true', help='Do one timestep and exit (overriding dmax).')
 parser.add_argument('--mg', action='store_true', help='Use multigrid.')
+parser.add_argument('--bdfm', action='store_true', help='Use BDFM element.')
 parser.add_argument('--siits', type=int, default=4, help='Number of semiimplicit nonlinear iterations. Default 4.')
 parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpnt_dumpt', type=float, default=24, help='Dump time in hours. Default 24.')
@@ -88,7 +89,10 @@ def perp(u):
 
 
 degree = args.degree
-V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
+if args.bdfm:
+    V1 = fd.FunctionSpace(mesh, "BDFM", degree)
+else:
+    V1 = fd.FunctionSpace(mesh, "BDFM", degree+1)
 V2 = fd.FunctionSpace(mesh, "DG", degree)
 V0 = fd.FunctionSpace(mesh, "CG", degree+2)
 W = fd.MixedFunctionSpace((V1, V2))
