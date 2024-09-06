@@ -123,9 +123,10 @@ while t < tmax + 0.5*dt:
     if args.one_step:
         t = tmax + dt
 
-    print('Mass: ', (fd.assemble(h0 * fd.dx) - mass_init)/mass_init)
-    print('Energy: ', (fd.assemble(0.5 * h0 * fd.inner(u0, u0) * fd.dx + 0.5 * g * (h0 - H + b) ** 2 * fd.dx)
+    PETSc.Sys.Print('Mass: ', (fd.assemble(h0 * fd.dx) - mass_init)/mass_init)
+    PETSc.Sys.Print('Energy: ', (fd.assemble(0.5 * h0 * fd.inner(u0, u0) * fd.dx + 0.5 * g * (h0 - H + b) ** 2 * fd.dx)
                       - energy_init)/energy_init)
+
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
