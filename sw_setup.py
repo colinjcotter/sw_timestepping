@@ -239,7 +239,8 @@ def checkpoint_output(u_out, eta_out):
         return
 
     with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
-        u_out_dg = fd.assemble(interpolate(u_out, V1dg))
+        u_out_dg = fd.Function(V1dg, name="Velocity")
+        fd.assemble(interpolate(u_out, V1dg), tensor=u_out_dg)
         afile.save_function(u_out_dg)
         afile.save_function(eta_out)
 
