@@ -83,6 +83,7 @@ if args.bdfm:
     V1 = fd.FunctionSpace(mesh, "BDFM", degree+1)
 else:
     V1 = fd.FunctionSpace(mesh, "BDM", degree+1)
+V1dg = fd.VectorFunctionSpace(mesh, "DG", degree+1, dim=3)
 V2 = fd.FunctionSpace(mesh, "DG", degree)
 V0 = fd.FunctionSpace(mesh, "CG", degree+2)
 W = fd.MixedFunctionSpace((V1, V2))
@@ -238,7 +239,8 @@ def checkpoint_output(u_out, eta_out):
         return
 
     with fd.CheckpointFile(args.checkpointfile, 'w') as afile:
-        afile.save_function(u_out)
+        u_out_dg = fd.assemble(interpolate(u_out, V1dg))
+        afile.save_function(u_out_dg)
         afile.save_function(eta_out)
 
 def tcheck(tmax, dt):

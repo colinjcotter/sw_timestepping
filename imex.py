@@ -127,11 +127,11 @@ file_sw.write(un, etan, qn)
 
 itcount = 0
 energy0 = fd.assemble(energy_expr)
+step = 0
 
-nsteps = tcheck(tmax, dt)
-
-for step in range(nsteps):
+while t < tmax - 0.5*dt:
     PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
+    step += 1
     t += dt
     tdump += dt
 
@@ -152,6 +152,9 @@ for step in range(nsteps):
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
+    if t + dt > tmax:
+        dt = tmax - t
+        dT.assign(dt)
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", dmax)
 assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
