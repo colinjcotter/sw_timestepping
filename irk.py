@@ -25,6 +25,7 @@ tmax = 60.*60.*hmax
 hdump = args.dumpt
 dumpt = hdump*60.*60.
 tdump = 0.
+tn = 0.
 
 from firedrake.output import VTKFile
 file_sw = VTKFile(name+'.pvd')
@@ -37,8 +38,8 @@ file_sw.write(un, etan, qn)
 nsteps = tcheck(tmax, dt)
 
 for step in range(nsteps):
-    PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
-
+    PETSc.Sys.Print(f"\nTimestep {step} at time {tn}, {tn/tmax} of total\n")
+    tn += dt # used only for displaying time, not used in stepper.
     tdump += dt
 
     stepper.advance()
@@ -53,7 +54,7 @@ for step in range(nsteps):
         file_sw.write(un, etan, qn)
         tdump -= dumpt
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
-assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
+assert abs(tn-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
 un.assign(u0)

@@ -43,7 +43,7 @@ file_sw.write(un, etan, qn)
 itcount = 0
 nsteps = tcheck(tmax, dt)
 
-for step in nsteps:
+for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
     t += dt
     tdump += dt
