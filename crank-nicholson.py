@@ -1,12 +1,12 @@
 from sw_setup import *
 
 Unp1 = fd.Function(W)
-u1, h1 = swap(fd.split(Unp1))
+u1, h1 = fd.split(Unp1)
 
 "Crank-Nicholson rule"
 half = fd.Constant(0.5)
 
-u0, h0 = swap(fd.split(Un))
+u0, h0 = fd.split(Un)
 eqn = (
     fd.inner(v, u1 - u0)*dx
     + half*dT*u_op(v, u0, h0)
@@ -23,7 +23,6 @@ pc = {
     "patch_pc_patch_partition_of_unity": True,
     "patch_pc_patch_sub_mat_type": "seqdense",
     "patch_pc_patch_construct_dim": 0,
-    #"patch_pc_patch_exclude_subspaces": "1",
     "patch_pc_patch_construct_type": "star",
     "patch_pc_patch_local_type": "additive",
     "patch_pc_patch_partition_of_unity": True,
@@ -42,6 +41,7 @@ nomgparameters = {
     "ksp_type": "gmres",
     #"ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
+    #"ksp_view": None,
     "ksp_atol": 1e-50,
     "ksp_rtol": 1e-5,
     "ksp_max_it": 400,
@@ -62,16 +62,11 @@ nsolver.set_transfer_manager(transfermanager)
 
 Unp1.assign(Un)
 
-dmax = args.dmax
-hmax = 24*dmax
-tmax = 60.*60.*hmax
-hdump = args.dumpt
-dumpt = hdump*60.*60.
 tdump = 0.
 t = 0.
 PETSc.Sys.Print('tmax', tmax, 'dt', dt)
 
-u0, h0 = swap(Un.subfunctions)
+u0, h0 = Un.subfunctions
 
 from firedrake.output import VTKFile
 file_sw = VTKFile(name+'.pvd')
@@ -92,9 +87,6 @@ for step in range(nsteps):
         nsolver.solve()
     Un.assign(Unp1)
 
-    if args.one_step:
-        step = nsteps-1
-
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
         un.assign(u0)
@@ -102,9 +94,13 @@ for step in range(nsteps):
         file_sw.write(un, etan, qn)
         tdump -= dumpt
     itcount += nsolver.snes.getLinearSolveIterations()
+    if args.one_step:
+        break
+
 PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/nsteps,
-                "dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
-assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
+                "dt", dt, "ref_level", args.ref_level, "tmax", args.tmax)
+if not args.one_step:
+    assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
 un.assign(u0)
