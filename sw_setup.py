@@ -90,7 +90,7 @@ else:
 
 if args.hybrid:
     V1_ele = fd.FiniteElement(family, fd.triangle, degree+1)
-    V1 = fd.FunctionSpace(mesh, V1_ele)
+    V1 = fd.FunctionSpace(mesh, fd.BrokenElement(V1_ele))
 else:
     V1 = fd.FunctionSpace(mesh, family, degree+1)
 V1dg = fd.VectorFunctionSpace(mesh, "DG", degree+1, dim=3)
@@ -98,9 +98,9 @@ V2 = fd.FunctionSpace(mesh, "DG", degree)
 V0 = fd.FunctionSpace(mesh, "CG", degree+2)
 if args.hybrid:
     if args.bdfm:
-        T = fd.FunctionSpace(mesh, "Hdiv Trace", degree)
+        T = fd.FunctionSpace(mesh, "HDivT", degree)
     else:
-        T = fd.FunctionSpace(mesh, "Hdiv Trace", degree+1)
+        T = fd.FunctionSpace(mesh, "HDivT", degree+1)
     W = fd.MixedFunctionSpace((V1, V2, T))
 else:
     W = fd.MixedFunctionSpace((V1, V2))
@@ -125,7 +125,10 @@ One = fd.Function(V2).assign(1.0)
 dx = fd.dx
 
 Un = fd.Function(W)
-u0, h0 = fd.split(Un)
+if args.hybrid:
+    u0, h0, ll0 = fd.split(Un)
+else:
+    u0, h0 = fd.split(Un)
 n = fd.FacetNormal(mesh)
 
 def both(u):
@@ -144,10 +147,10 @@ def u_op(v, u, h, system="full"):
                       - fd.div(v)*K*dx)
     else:
         nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
-    unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
-    unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
-    nonlinear += fd.dot(fd.jump(v),
-                        (unp*u('+') - unm*u('-')))*dS
+        unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
+        unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
+        nonlinear += fd.dot(fd.jump(v),
+                            (unp*u('+') - unm*u('-')))*dS
     linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*(h+b)*dx
     if system == "linear":
         return linear
@@ -158,15 +161,15 @@ def u_op(v, u, h, system="full"):
 def h_op(phi, u, h, system="full"):
     if system == "linear":
         return H*fd.div(u)*phi*dx
-        unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
-        unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
+    unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
+    unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
     if system == "nonlinear":
         return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
                 + fd.jump(phi)*(unp*(h('+')-H)
                                 - unm*(h('-')-H))*dS
                 )
     return (- fd.inner(fd.grad(phi), u)*h*dx
-            + fd.jump(phi)*(unp*h('+') - unm('-')*h('-'))*dS
+            + fd.jump(phi)*(unp*h('+') - unm*h('-'))*dS
             )
 
 # monolithic solver options
