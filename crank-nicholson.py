@@ -1,12 +1,19 @@
 from sw_setup import *
 
 Unp1 = fd.Function(W)
-u1, h1 = swap(fd.split(Unp1))
+if args.hybrid:
+    u1, h1, ll1 = fd.split(Unp1)
+else:
+    u1, h1 = fd.split(Unp1)
 
 "Crank-Nicholson rule"
 half = fd.Constant(0.5)
 
-u0, h0 = swap(fd.split(Un))
+if args.hybrid:
+    u0, h0, ll0 = fd.split(Un)
+else:
+    u0, h0 = fd.split(Un)
+
 eqn = (
     fd.inner(v, u1 - u0)*dx
     + half*dT*u_op(v, u0, h0)
@@ -16,22 +23,29 @@ eqn = (
     + half*dT*h_op(phi, u1, h1)
 )
 
+if args.hybrid:
+    eqn += dT*fd.inner(fd.jump(v, n), ll1)*fd.dS
+    eqn += fd.inner(fd.jump(u1, n), mu)*fd.dS
+
+if args.hybrid:
+    dim = 1
+else:
+    dim = 0
+    
 pc = {
     "pc_type": "python",
     "pc_python_type": "firedrake.PatchPC",
     "patch_pc_patch_save_operators": True,
     "patch_pc_patch_partition_of_unity": True,
     "patch_pc_patch_sub_mat_type": "seqdense",
-    "patch_pc_patch_construct_dim": 0,
-    #"patch_pc_patch_exclude_subspaces": "1",
+    "patch_pc_patch_construct_dim": dim,
     "patch_pc_patch_construct_type": "star",
     "patch_pc_patch_local_type": "additive",
     "patch_pc_patch_partition_of_unity": True,
     "patch_pc_patch_precompute_element_tensors": True,
     "patch_pc_patch_symmetrise_sweep": False,
     "patch_sub_ksp_type": "preonly",
-    "patch_sub_pc_type": "ilu",
-    "patch_sub_pc_factor_mat_ordering_type": "rcm",
+    "patch_sub_pc_type": "lu"
 }
 
 nomgparameters = {
