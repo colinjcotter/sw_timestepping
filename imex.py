@@ -107,6 +107,11 @@ unp1solver = fd.NonlinearVariationalSolver(unp1prob, options_prefix="unp1",
 
 Unp1.assign(Un)
 
+dmax = args.dmax
+hmax = 24*dmax
+tmax = 60.*60.*hmax
+hdump = args.dumpt
+dumpt = hdump*60.*60.
 tdump = 0.
 t = 0.
 PETSc.Sys.Print('tmax', tmax, 'dt', dt)
@@ -147,7 +152,10 @@ while t < tmax - 0.5*dt:
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", tmax)
+    if t + dt > tmax:
+        dt = tmax - t
+        dT.assign(dt)
+PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", dmax)
 assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
