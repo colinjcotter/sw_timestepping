@@ -9,13 +9,24 @@ half = fd.Constant(0.5)
 u0, h0 = swap(fd.split(Un))
 eqn = (
     fd.inner(v, u1 - u0)*dx
-    + half*dT*u_op(v, u0, h0)
-    + half*dT*u_op(v, u1, h1)
+    + half*dT*u_op(v, u0, h0, system="full")
+    + half*dT*u_op(v, u1, h1, system="full")
     + phi*(h1 - h0)*dx
-    + half*dT*h_op(phi, u0, h0)
-    + half*dT*h_op(phi, u1, h1)
+    + half*dT*h_op(phi, u0, h0, system="full")
+    + half*dT*h_op(phi, u1, h1, system="full")
 )
 
+if args.hybrid:
+    eqn += half*dT*fd.inner(fd.jump(v, n), ll1('+'))*fd.dS
+    eqn += fd.inner(fd.jump(u1, n), mu('+'))*fd.dS
+
+if args.hybrid:
+    dim = 2
+    ptype = "star"
+else:
+    dim = 0
+    ptype = "star"
+    
 pc = {
     "pc_type": "python",
     "pc_python_type": "firedrake.PatchPC",
@@ -26,24 +37,27 @@ pc = {
     #"patch_pc_patch_exclude_subspaces": "1",
     "patch_pc_patch_construct_type": "star",
     "patch_pc_patch_local_type": "additive",
-    "patch_pc_patch_partition_of_unity": True,
     "patch_pc_patch_precompute_element_tensors": True,
     "patch_pc_patch_symmetrise_sweep": False,
-    "patch_sub_ksp_type": "preonly",
-    "patch_sub_pc_type": "ilu",
-    "patch_sub_pc_factor_mat_ordering_type": "rcm",
+    "patch_pc_sub_ksp_type": "preonly",
+    "patch_pc_sub_pc_type": "mumps",
 }
 
 nomgparameters = {
     "snes_monitor": None,
+    "snes_stol": 1.0e-50,
+    "snes_rtol": 1.0e-7,
+    "snes_atol": 1.0e-50,
+    "snes_converged_reason": None,
     "snes_lag_preconditioner": 10,
-    "snes_lag_preconditioner_persists": None,
+    #"snes_lag_preconditioner_persists": None,
     "mat_type": "matfree",
     "ksp_type": "gmres",
+    "ksp_monitor": None,
     #"ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
     "ksp_atol": 1e-50,
-    "ksp_rtol": 1e-5,
+    "ksp_rtol": 1e-8,
     "ksp_max_it": 400,
     "pc_type": "ksp",
     "ksp_ksp_type": "richardson",
