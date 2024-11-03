@@ -21,6 +21,8 @@ parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form.')
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--hybrid', action='store_true', help='Use broken formulation with trace multipliers.')
+parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
+parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 
 args = parser.parse_known_args()
 args = args[0]
