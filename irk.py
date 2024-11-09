@@ -23,17 +23,17 @@ eqn = (
 
 if args.sdc:
     parameters = {"mat_type": "matfree",
-              "snes_type": "ksponly",
-              "ksp_type": "gmres",
-              "ksp_atol": 1.0e-50,
-              "ksp_rtol": 1.0e-8,
-              "pc_type": "python",
-              "pc_python_type": "__main__.PQPC",
-              "aux" : 
-              {"pc_type": "fieldsplit",   # block preconditioner
-               "pc_fieldsplit_type": "additive"  # block diagonal
-               }
-              }
+                  "ksp_type": "gmres",
+                  "ksp_monitor": None,
+                  "ksp_atol": 1.0e-50,
+                  "ksp_rtol": 1.0e-8,
+                  "pc_type": "python",
+                  "pc_python_type": "__main__.PQPC",
+                  "aux" : 
+                  {"pc_type": "fieldsplit",   # block preconditioner
+                   "pc_fieldsplit_type": "additive"  # block diagonal
+                   }
+                  }
 
     per_field = {
         "ksp_type": "preonly",

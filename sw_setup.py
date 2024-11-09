@@ -31,7 +31,7 @@ vector_invariant = args.vector_invariant
 
 if args.show_args:
     PETSc.Sys.Print(args)
-
+    
 # some domain, parameters and FS setup
 R0 = 6371220.
 H = fd.Constant(5960.)
