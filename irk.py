@@ -32,27 +32,38 @@ if args.sdc:
                   "aux" : 
                   {"pc_type": "fieldsplit",   # block preconditioner
                    "pc_fieldsplit_type": "additive"  # block diagonal
-                   }
+                   },
+                  "snes_monitor": None,
+                  "snes_lag_preconditioner": 5,
                   }
 
-    per_field = {
+    per_field={
         "ksp_type": "preonly",
-        "pc_type": "python",
-        "pc_python_type": "firedrake.PatchPC",
-        "patch_pc_patch_save_operators": True,
-        "patch_pc_patch_partition_of_unity": True,
-        "patch_pc_patch_sub_mat_type": "seqdense",
-        "patch_pc_patch_construct_dim": 0,
-        "patch_pc_patch_construct_type": "star",
-        "patch_pc_patch_local_type": "additive",
-        "patch_pc_patch_precompute_element_tensors": True,
-        "patch_pc_patch_symmetrise_sweep": False,
-        "patch_pc_sub_ksp_type": "preonly"
+        "pc_type": "mg",
+        "pc_mg_cycle_type": "v",
+        "pc_mg_type": "multiplicative",
+        "mg_levels_ksp_type": "gmres",
+        "mg_levels_ksp_max_it": 3,
+        #"mg_levels_ksp_convergence_test": "skip",
+        "mg_levels_pc_type": "python",
+        "mg_levels_pc_python_type": "firedrake.PatchPC",
+        "mg_levels_patch_pc_patch_save_operators": True,
+        "mg_levels_patch_pc_patch_partition_of_unity": True,
+        "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
+        "mg_levels_patch_pc_patch_construct_dim": 0,
+        "mg_levels_patch_pc_patch_construct_type": "star",
+        "mg_levels_patch_pc_patch_local_type": "additive",
+        "mg_levels_patch_pc_patch_precompute_element_tensors": True,
+        "mg_levels_patch_pc_patch_symmetrise_sweep": False,
+        "mg_levels_patch_sub_ksp_type": "preonly",
+        "mg_levels_patch_sub_pc_type": "lu",
+        "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+        "mg_coarse_pc_type": "python",
+        "mg_coarse_pc_python_type": "firedrake.AssembledPC",
+        "mg_coarse_assembled_pc_type": "lu",
+        "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
     }
     
-    per_field = {"ksp_type": "preonly",
-                 "pc_type": "lu"}
-
     for s in range(args.rk_stages):
         parameters["aux_pc_fieldsplit_"+str(s)+"_fields"] = \
             str(2*s)+","+str(2*s+1)
