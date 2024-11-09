@@ -6,7 +6,7 @@ import numpy as np
 MC = MeshConstant(mesh)
 
 dT = MC.Constant(dt)
-t = MC.Constant(0.)
+tc = MC.Constant(0.)
 
 butcher_tableau = RadauIIA(args.rk_stages)
 class PQPC(RanaBase):
@@ -101,11 +101,6 @@ stepper = TimeStepper(eqn, butcher_tableau, t, dT, Un,
                       solver_parameters=parameters)
 stepper.solver.set_transfer_manager(transfermanager)
 
-dmax = args.dmax
-hmax = 24*dmax
-tmax = 60.*60.*hmax
-hdump = args.dumpt
-dumpt = hdump*60.*60.
 tdump = 0.
 
 from firedrake.output import VTKFile
@@ -117,12 +112,17 @@ qsolver.solve()
 file_sw.write(un, etan, qn)
 
 nsteps = tcheck(tmax, dt)
+step = 0
+t = 0.
+
+while t < tmax - 0.5*dt:
+    step += 1
 
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
 
     tdump += dt
-
+    t += dt
     stepper.advance()
 
     if args.one_step:
@@ -134,7 +134,8 @@ for step in range(nsteps):
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
+
+PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", args.tmax)
 assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
