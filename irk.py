@@ -97,7 +97,7 @@ else:
     }
 
 
-stepper = TimeStepper(eqn, butcher_tableau, t, dT, Un,
+stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       solver_parameters=parameters)
 stepper.solver.set_transfer_manager(transfermanager)
 
@@ -114,9 +114,6 @@ file_sw.write(un, etan, qn)
 nsteps = tcheck(tmax, dt)
 step = 0
 t = 0.
-
-while t < tmax - 0.5*dt:
-    step += 1
 
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
