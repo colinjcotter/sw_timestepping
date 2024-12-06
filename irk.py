@@ -8,9 +8,9 @@ MC = MeshConstant(mesh)
 dT = MC.Constant(dt)
 tc = MC.Constant(0.)
 
-if args.rk_stages == 'RadauIIA':
+if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
-elif args.rk_stages == 'GaussLegendre':
+elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 
 class PQPC(RanaBase):
