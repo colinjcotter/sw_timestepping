@@ -1,5 +1,5 @@
 from sw_setup import *
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper
+from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre
 from irksome.pc import RanaBase
 import numpy as np
 
@@ -73,7 +73,21 @@ if args.sdc:
             str(2*s)+","+str(2*s+1)
         parameters["aux_fieldsplit_%s" % (s,)] = per_field
 else:
-    pc = {
+    parameters = {
+        "snes_monitor": None,
+        "snes_converged_reason": None,
+        "snes_atol": 1e-50,
+        "snes_stol": 1e-50,
+        # "snes_max_it": 1,
+        # "snes_convergence_test": "skip",
+        #"snes_lag_jacobian": -2,
+        #"snes_lag_jacobian_persists": None,
+        "ksp_monitor": None,
+        "ksp_converged_rate": None,
+        # "ksp_view": None,
+        "ksp_type": "gmres",
+        "ksp_rtol": 1e-3,
+        "ksp_max_it": 40,
         "pc_type": "python",
         "pc_python_type": "firedrake.PatchPC",
         "patch_pc_patch_save_operators": True,
@@ -84,31 +98,9 @@ else:
         "patch_pc_patch_local_type": "additive",
         "patch_pc_patch_precompute_element_tensors": True,
         "patch_pc_patch_symmetrise_sweep": False,
-        "patch_pc_sub_ksp_type": "preonly",
-    }
-    parameters = {
-        "mat_type": "matfree",
-        "snes_monitor": None,
-        "snes_stol": 1.0e-50,
-        "snes_rtol": 1.0e-7,
-        "snes_atol": 1.0e-50,
-        "snes_converged_reason": None,
-        #"snes_lag_preconditioner": 10,
-        "mat_type": "matfree",
-        "ksp_type": "gmres",
-        "ksp_monitor": None,
-        "ksp_converged_reason": None,
-        "ksp_atol": 1e-50,
-        "ksp_rtol": 1e-8,
-        "ksp_max_it": 400,
-        "pc_type": "ksp",
-        "ksp_ksp_type": "richardson",
-        "ksp_ksp_richardson_scale": 1.,
-        "ksp_ksp_rtol": 1e-10,
-        "ksp_ksp_max_it": 1,
-        "ksp_ksp_convergence_test": 'skip',
-        "ksp_ksp_converged_maxits": None,
-        "ksp" : pc
+        "patch_sub_ksp_type": "preonly",
+        "patch_sub_pc_type": "lu",
+        "patch_sub_pc_factor_shift_type": "nonzero"
     }
 
 
