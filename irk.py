@@ -8,7 +8,11 @@ MC = MeshConstant(mesh)
 dT = MC.Constant(dt)
 tc = MC.Constant(0.)
 
-butcher_tableau = RadauIIA(args.rk_stages)
+if args.rk_stages == 'RadauIIA':
+    butcher_tableau = RadauIIA(args.rk_stages)
+elif args.rk_stages == 'GaussLegendre':
+    butcher_tableau = GaussLegendre(args.rk_stages)
+
 class PQPC(RanaBase):
     def getAtilde(self, A):
         return np.diag(butcher_tableau.c)
