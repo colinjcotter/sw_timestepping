@@ -24,6 +24,7 @@ parser.add_argument('--hybrid', action='store_true', help='Use broken formulatio
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
 parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
+parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -141,7 +142,10 @@ dT = fd.Constant(0.)
 dS = fd.dS
 
 def u_op(v, u, h, system="full"):
-    Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
+    if args.centred:
+        Upwind = 0.5
+    else:
+        Upwind = 0.5 * (fd.sign(fd.dot(u, n)) + 1)
     K = 0.5*fd.inner(u, u)
     if vector_invariant:
         nonlinear = ( - fd.inner(perp(fd.grad(fd.inner(v, perp(u)))), u)*dx
@@ -150,8 +154,14 @@ def u_op(v, u, h, system="full"):
                       - fd.div(v)*K*dx)
     else:
         nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
-        unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
-        unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
+        if args.centred:
+            unp = 0.5*fd.dot(u('+'), n('+'))
+            unm = 0.5*fd.dot(u('-'), n('-'))
+        else:
+            unp = \
+                0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
+            unm = \
+                0.5*(fd.dot(u('-'), n('-')) + abs(fd.dot(u('-'), n('-'))))
         nonlinear += fd.dot(fd.jump(v),
                             (unp*u('+') - unm*u('-')))*dS
     linear = fd.inner(v, f*perp(u))*dx - fd.div(v)*g*(h+b)*dx
@@ -164,8 +174,12 @@ def u_op(v, u, h, system="full"):
 def h_op(phi, u, h, system="full"):
     if system == "linear":
         return H*fd.div(u)*phi*dx
-    unp = 0.5*(fd.dot(fd.avg(u), n('+')) + abs(fd.dot(fd.avg(u), n('+'))))
-    unm = 0.5*(fd.dot(fd.avg(u), n('-')) + abs(fd.dot(fd.avg(u), n('-'))))
+    if args.centred:
+        unp = 0.5*fd.dot(u('+'), n('+'))
+        unm = 0.5*fd.dot(u('-'), n('-'))
+    else:
+        unp = 0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
+        unm = 0.5*(fd.dot(u('-'), n('-')) + abs(fd.dot(u('-'), n('-'))))
     if system == "nonlinear":
         return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
                 + fd.jump(phi)*(unp*(h('+')-H)
