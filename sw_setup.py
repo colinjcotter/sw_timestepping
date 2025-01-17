@@ -9,9 +9,9 @@ import argparse
 parser = argparse.ArgumentParser(description='Williamson 5 testcase.')
 parser.add_argument('--base_level', type=int, default=1, help='Base refinement level of icosahedral grid for MG solve. Default 1.')
 parser.add_argument('--ref_level', type=int, default=5, help='Refinement level of icosahedral grid. Default 5.')
-parser.add_argument('--dmax', type=float, default=15, help='Final time in days. Default 15.')
-parser.add_argument('--dumpt', type=float, default=24, help='Dump time in hours. Default 24.')
-parser.add_argument('--dt', type=float, default=1, help='Timestep in hours. Default 1.')
+parser.add_argument('--tmax', type=float, default=1296000, help='Final time in seconds. Default 1296000 (15 days).')
+parser.add_argument('--dumpt', type=float, default=86400, help='Dump time in seconds. Default 86400 (24 hours).')
+parser.add_argument('--dt', type=float, default=3600, help='Timestep in seconds. Default 1.')
 parser.add_argument('--coords_degree', type=int, default=1, help='Degree of polynomials for sphere mesh approximation.')
 parser.add_argument('--degree', type=int, default=1, help='Degree of finite element space (the DG space).')
 parser.add_argument('--show_args', action='store_true', help='Output all the arguments.')
@@ -21,15 +21,21 @@ parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form.')
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--hybrid', action='store_true', help='Use broken formulation with trace multipliers.')
+parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
+parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
+parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 
 args = parser.parse_known_args()
 args = args[0]
 
 vector_invariant = args.vector_invariant
 
+tmax = args.tmax
+dumpt = args.dumpt
+
 if args.show_args:
     PETSc.Sys.Print(args)
-
+    
 # some domain, parameters and FS setup
 R0 = 6371220.
 H = fd.Constant(5960.)
@@ -215,7 +221,7 @@ transfers = {
 }
 transfermanager = fd.TransferManager(native_transfers=transfers)
 
-dt = 60*60*args.dt
+dt = args.dt
 dT.assign(dt)
 
 x = fd.SpatialCoordinate(mesh)

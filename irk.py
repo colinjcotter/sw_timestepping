@@ -1,11 +1,21 @@
 from sw_setup import *
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper
+from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre
+from irksome.pc import RanaBase
+import numpy as np
+
 MC = MeshConstant(mesh)
 
 dT = MC.Constant(dt)
-t = MC.Constant(0.)
+tc = MC.Constant(0.)
 
-butcher_tableau = RadauIIA(2)
+if args.rk_type == 'RadauIIA':
+    butcher_tableau = RadauIIA(args.rk_stages)
+elif args.rk_type == 'GaussLegendre':
+    butcher_tableau = GaussLegendre(args.rk_stages)
+
+class PQPC(RanaBase):
+    def getAtilde(self, A):
+        return np.diag(butcher_tableau.c)
 
 u0, h0 = fd.split(Un)
 eqn = (
@@ -15,15 +25,89 @@ eqn = (
     + h_op(phi, u0, h0)
 )
 
-stepper = TimeStepper(eqn, butcher_tableau, t, dT, Un,
-                      solver_parameters=sparameters)
+if args.sdc:
+    parameters = {"mat_type": "matfree",
+                  "ksp_type": "gmres",
+                  "ksp_monitor": None,
+                  "ksp_atol": 1.0e-50,
+                  "ksp_rtol": 1.0e-8,
+                  "pc_type": "python",
+                  "pc_python_type": "__main__.PQPC",
+                  "aux" : 
+                  {"pc_type": "fieldsplit",   # block preconditioner
+                   "pc_fieldsplit_type": "additive"  # block diagonal
+                   },
+                  "snes_monitor": None,
+                  "snes_lag_preconditioner": 5,
+                  }
+
+    per_field={
+        "ksp_type": "preonly",
+        "pc_type": "mg",
+        "pc_mg_cycle_type": "v",
+        "pc_mg_type": "multiplicative",
+        "mg_levels_ksp_type": "gmres",
+        "mg_levels_ksp_max_it": 3,
+        #"mg_levels_ksp_convergence_test": "skip",
+        "mg_levels_pc_type": "python",
+        "mg_levels_pc_python_type": "firedrake.PatchPC",
+        "mg_levels_patch_pc_patch_save_operators": True,
+        "mg_levels_patch_pc_patch_partition_of_unity": True,
+        "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
+        "mg_levels_patch_pc_patch_construct_dim": 0,
+        "mg_levels_patch_pc_patch_construct_type": "star",
+        "mg_levels_patch_pc_patch_local_type": "additive",
+        "mg_levels_patch_pc_patch_precompute_element_tensors": True,
+        "mg_levels_patch_pc_patch_symmetrise_sweep": False,
+        "mg_levels_patch_sub_ksp_type": "preonly",
+        "mg_levels_patch_sub_pc_type": "lu",
+        "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+        "mg_coarse_pc_type": "python",
+        "mg_coarse_pc_python_type": "firedrake.AssembledPC",
+        "mg_coarse_assembled_pc_type": "lu",
+        "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
+    }
+    
+    for s in range(args.rk_stages):
+        parameters["aux_pc_fieldsplit_"+str(s)+"_fields"] = \
+            str(2*s)+","+str(2*s+1)
+        parameters["aux_fieldsplit_%s" % (s,)] = per_field
+else:
+    parameters = {
+        "snes_monitor": None,
+        "snes_converged_reason": None,
+        "snes_atol": 1e-50,
+        "snes_stol": 1e-50,
+        # "snes_max_it": 1,
+        # "snes_convergence_test": "skip",
+        #"snes_lag_jacobian": -2,
+        #"snes_lag_jacobian_persists": None,
+        "ksp_monitor": None,
+        "ksp_converged_rate": None,
+        # "ksp_view": None,
+        "ksp_type": "gmres",
+        "ksp_rtol": 1e-3,
+        "ksp_max_it": 40,
+        "pc_type": "python",
+        "pc_python_type": "firedrake.PatchPC",
+        "patch_pc_patch_save_operators": True,
+        "patch_pc_patch_partition_of_unity": True,
+        "patch_pc_patch_sub_mat_type": "seqdense",
+        "patch_pc_patch_construct_dim": 0,
+        "patch_pc_patch_construct_type": "star",
+        "patch_pc_patch_local_type": "additive",
+        "patch_pc_patch_precompute_element_tensors": True,
+        "patch_pc_patch_symmetrise_sweep": False,
+        "patch_sub_ksp_type": "preonly",
+        "patch_sub_pc_type": "lu",
+        "patch_sub_pc_factor_shift_type": "nonzero"
+    }
+
+
+stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
+                      solver_parameters=parameters)
 stepper.solver.set_transfer_manager(transfermanager)
 
-dmax = args.dmax
-hmax = 24*dmax
-tmax = 60.*60.*hmax
-hdump = args.dumpt
-dumpt = hdump*60.*60.
 tdump = 0.
 tn = 0.
 
@@ -36,12 +120,14 @@ qsolver.solve()
 file_sw.write(un, etan, qn)
 
 nsteps = tcheck(tmax, dt)
+step = 0
+t = 0.
 
 for step in range(nsteps):
-    PETSc.Sys.Print(f"\nTimestep {step} at time {tn}, {tn/tmax} of total\n")
-    tn += dt # used only for displaying time, not used in stepper.
-    tdump += dt
+    PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
 
+    tdump += dt
+    t += dt
     stepper.advance()
 
     if args.one_step:
@@ -53,8 +139,9 @@ for step in range(nsteps):
         qsolver.solve()
         file_sw.write(un, etan, qn)
         tdump -= dumpt
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "dmax", args.dmax)
-assert abs(tn-tmax) < 1.0e-5, "t is not equal to tmax"
+
+PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", args.tmax)
+assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
 un.assign(u0)
