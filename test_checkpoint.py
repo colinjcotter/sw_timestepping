@@ -1,12 +1,13 @@
 from firedrake import *
 from firedrake.__future__ import interpolate
 
-with CheckpointFile("test.h5", 'r') as afile:
+with CheckpointFile("data1/imex_L6_dt_22.5.h5", 'r') as afile:
     mesh1 = afile.load_mesh("errormesh")
     eta1 = afile.load_function(mesh1, "Elevation")
     u1 = afile.load_function(mesh1, "Velocity")
 
-with CheckpointFile("test2.h5", 'r') as afile:
+
+with CheckpointFile("data1/imex_L6_dt_56.25.h5", 'r') as afile:
     mesh = afile.load_mesh("errormesh")
     eta2 = afile.load_function(mesh, "Elevation")
     u2 = afile.load_function(mesh, "Velocity")
