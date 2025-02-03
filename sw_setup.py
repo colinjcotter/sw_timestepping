@@ -25,6 +25,7 @@ parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stage
 parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
+parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 
 args = parser.parse_known_args()
 args = args[0]
