@@ -26,6 +26,7 @@ parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
+parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 
 args = parser.parse_known_args()
 args = args[0]
