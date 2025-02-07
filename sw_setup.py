@@ -26,6 +26,7 @@ parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
+parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -240,30 +241,65 @@ dt = args.dt
 dT.assign(dt)
 
 x = fd.SpatialCoordinate(mesh)
-u_0 = 20.0  # maximum amplitude of the zonal wind [m/s]
-u_max = fd.Constant(u_0)
-u_expr = fd.as_vector([-u_max*x[1]/R0, u_max*x[0]/R0, 0.0])
-eta_expr = - ((R0 * Omega * u_max + u_max*u_max/2.0)*(x[2]*x[2]/(R0*R0)))/g
-un = fd.Function(V1, name="Velocity").project(u_expr)
-etan = fd.Function(V2, name="Elevation").project(eta_expr)
-
-# Topography.
-rl = fd.pi/9.0
-lambda_x = fd.atan2(x[1]/R0, x[0]/R0)
-lambda_c = -fd.pi/2.0
-phi_x = fd.asin(x[2]/R0)
-phi_c = fd.pi/6.0
-minarg = fd.min_value(pow(rl, 2),
-                pow(phi_x - phi_c, 2) + pow(lambda_x - lambda_c, 2))
-bexpr = 2000.0*(1 - fd.sqrt(minarg)/rl)
-b.interpolate(bexpr)
+un = fd.Function(V1, name="Velocity")
+etan = fd.Function(V2, name="Elevation")
 
 if args.hybrid:
     u0, h0, ll0 = Un.subfunctions
 else:
     u0, h0 = Un.subfunctions
-u0.assign(un)
-h0.assign(etan + H - b)
+
+testcase = args.williamson
+
+if testcase == 5:
+    u_0 = 20.0  # maximum amplitude of the zonal wind [m/s]
+    u_max = fd.Constant(u_0)
+    u_expr = fd.as_vector([-u_max*x[1]/R0, u_max*x[0]/R0, 0.0])
+    eta_expr = - ((R0 * Omega * u_max + u_max*u_max/2.0)*(x[2]*x[2]/(R0*R0)))/g
+    un.project(u_expr)
+    etan.project(eta_expr)
+    # Topography.
+    rl = fd.pi/9.0
+    lambda_x = fd.atan2(x[1]/R0, x[0]/R0)
+    lambda_c = -fd.pi/2.0
+    phi_x = fd.asin(x[2]/R0)
+    phi_c = fd.pi/6.0
+    minarg = fd.min_value(pow(rl, 2),
+                          pow(phi_x - phi_c, 2) + pow(lambda_x - lambda_c, 2))
+    bexpr = 2000.0*(1 - fd.sqrt(minarg)/rl)
+    b.interpolate(bexpr)
+    u0.assign(un)
+    h0.assign(etan + H - b)
+
+elif testcase == 6:
+    x, y, z = fd.SpatialCoordinate(mesh)
+    lon = fd.atan2(y, x)
+    l = (x**2 + y**2)**0.5
+    lat = fd.atan2(z, l)
+
+    # code stolen from Alex Brown
+    R = fd.Constant(4)
+    K = fd.Constant(7.847e-6) # Frequency parameter, in sec^-1
+    w = K  
+    H0 = fd.Constant(8000.)
+    CG2 = fd.FunctionSpace(mesh, 'CG', 2)
+    psi = fd.Function(CG2)
+    psiexpr = -R0**2 * w * fd.sin(lat) + \
+        R0**2 * K * fd.cos(lat)**R * fd.sin(lat) * fd.cos(R*lon)
+    psi.interpolate(psiexpr)
+    u_expr = perp(fd.grad(psi))
+    un.project(u_expr)
+    u0.assign(un)
+    # Initilising the depth field
+    A = (w / 2) * (2 * Omega + w) * fd.cos(lat)**2 + \
+        0.25 * K**2 * fd.cos(lat)**(2 * R) * ((R + 1) * fd.cos(lat)**2 + (2 * R**2 - R - 2) - 2 * R**2 * fd.cos(lat)**(-2))
+    B_frac = (2 * (Omega + w) * K) / ((R + 1) * (R + 2))
+    B = B_frac * fd.cos(lat)**R * ((R**2 + 2 * R + 2) - (R + 1)**2 * fd.cos(lat)**2)
+    C = (1 / 4) * K**2 * fd.cos(lat)**(2 * R) * ((R + 1)*fd.cos(lat)**2 - (R + 2))
+    Dexpr = H0 + R0**2 * (A + B*fd.cos(lon*R) + C * fd.cos(2 * R * lon))/g
+    h0.interpolate(Dexpr)
+else:
+    raise NotImplementedError
 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)

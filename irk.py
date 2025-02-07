@@ -81,7 +81,7 @@ else:
         "snes_rtol": args.ntol,
         # "snes_max_it": 1,
         # "snes_convergence_test": "skip",
-        #"snes_lag_jacobian": -2,
+        "snes_lag_jacobian": -2,
         #"snes_lag_jacobian_persists": None,
         "ksp_monitor": None,
         "ksp_converged_rate": None,
@@ -90,20 +90,71 @@ else:
         "ksp_rtol": 1e-6,
         "ksp_atol": 1e-50,
         "ksp_max_it": 60,
-        "pc_type": "python",
-        "pc_python_type": "firedrake.PatchPC",
-        "patch_pc_patch_save_operators": True,
-        "patch_pc_patch_partition_of_unity": True,
-        "patch_pc_patch_sub_mat_type": "seqdense",
-        "patch_pc_patch_construct_dim": 0,
-        "patch_pc_patch_construct_type": "star",
-        "patch_pc_patch_local_type": "additive",
-        "patch_pc_patch_precompute_element_tensors": True,
-        "patch_pc_patch_symmetrise_sweep": False,
-        "patch_sub_ksp_type": "preonly",
-        "patch_sub_pc_type": "lu",
-        "patch_sub_pc_factor_shift_type": "nonzero"
+        "pc_type": "ksp",
+        "ksp_ksp_type": "richardson",
+        "ksp_ksp_richardson_scale": 0.99,
+        "ksp_ksp_max_it": 2,
+        "ksp_pc_type": "python",
+        "ksp_pc_python_type": "firedrake.PatchPC",
+        "ksp_patch_pc_patch_save_operators": True,
+        "ksp_patch_pc_patch_partition_of_unity": True,
+        "ksp_patch_pc_patch_sub_mat_type": "seqdense",
+        "ksp_patch_pc_patch_construct_dim": 0,
+        "ksp_patch_pc_patch_construct_type": "star",
+        "ksp_patch_pc_patch_local_type": "additive",
+        "ksp_patch_pc_patch_precompute_element_tensors": True,
+        "ksp_patch_pc_patch_symmetrise_sweep": False,
+        "ksp_patch_sub_ksp_type": "preonly",
+        "ksp_patch_sub_pc_type": "ilu",
+        "ksp_patch_sub_pc_factor_shift_type": "nonzero"
     }
+
+patch = {
+    "pc_type": "python",
+    "pc_python_type": "firedrake.PatchPC",
+    "patch_pc_patch_save_operators": True,
+    "patch_pc_patch_partition_of_unity": True,
+    "patch_pc_patch_sub_mat_type": "seqdense",
+    "patch_pc_patch_construct_dim": 0,
+    "patch_pc_patch_construct_type": "star",
+    "patch_pc_patch_local_type": "additive",
+    "patch_pc_patch_precompute_element_tensors": True,
+    "patch_pc_patch_symmetrise_sweep": False,
+    "patch_sub_ksp_type": "preonly",
+    "patch_sub_pc_type": "ilu",
+    "patch_sub_pc_factor_shift_type": "nonzero"
+}
+
+fields0 = ""
+fields1 = ""
+for i in range(args.rk_stages):
+    fields0 += str(2*i+1)
+    fields1 += str(2*i)
+    if i < args.rk_stages-1:
+        fields0 += ", "
+        fields1 += ", "
+
+schur_parameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    #"snes_lag_jacobian": -2,
+    #"snes_lag_jacobian_persists": None,
+    "ksp_monitor": None,
+    "ksp_converged_rate": None,
+    "ksp_type": "gmres",
+    "ksp_rtol": 1e-6,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    "pc_type": "fieldsplit",
+    "pc_fieldsplit_type": "multiplicative",
+    "fieldsplit_0_fields": fields0,
+    "fieldsplit_1_fields": fields1,
+    "fieldsplit_0" : patch,
+    "fieldsplit_1" : patch
+}
 
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
