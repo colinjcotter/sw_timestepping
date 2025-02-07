@@ -244,6 +244,11 @@ x = fd.SpatialCoordinate(mesh)
 un = fd.Function(V1, name="Velocity")
 etan = fd.Function(V2, name="Elevation")
 
+if args.hybrid:
+    u0, h0, ll0 = Un.subfunctions
+else:
+    u0, h0 = Un.subfunctions
+
 testcase = args.williamson
 
 if testcase == 5:
@@ -292,15 +297,9 @@ elif testcase == 6:
     B = B_frac * fd.cos(lat)**R * ((R**2 + 2 * R + 2) - (R + 1)**2 * fd.cos(lat)**2)
     C = (1 / 4) * K**2 * fd.cos(lat)**(2 * R) * ((R + 1)*fd.cos(lat)**2 - (R + 2))
     Dexpr = H0 + R0**2 * (A + B*fd.cos(lon*R) + C * fd.cos(2 * R * lon))/g
-    Dn.project(Dexpr)
-    h0.assign(Dn)
+    h0.interpolate(Dexpr)
 else:
     raise NotImplementedError
-    
-if args.hybrid:
-    u0, h0, ll0 = Un.subfunctions
-else:
-    u0, h0 = Un.subfunctions
 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)
