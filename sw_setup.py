@@ -280,10 +280,9 @@ elif testcase == 6:
     # code stolen from Alex Brown
     R = fd.Constant(4)
     K = fd.Constant(7.847e-6) # Frequency parameter, in sec^-1
-    w = K  
+    w = K
     H0 = fd.Constant(8000.)
-    CG2 = fd.FunctionSpace(mesh, 'CG', 2)
-    psi = fd.Function(CG2)
+    psi = fd.Function(V0)
     psiexpr = -R0**2 * w * fd.sin(lat) + \
         R0**2 * K * fd.cos(lat)**R * fd.sin(lat) * fd.cos(R*lon)
     psi.interpolate(psiexpr)
