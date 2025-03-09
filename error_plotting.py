@@ -4,32 +4,40 @@ import matplotlib.pyplot as plt
 
 
 folder = 'data1/'
+folder = 'data1/w6/'
+tmax = 86400
+
 method = 'imex'
 # method = 'irk'
 method = 'irk_RadauIIA3'
 method = 'irk_GaussLegendre2'
 
+#method = irk_w6_GaussLegendre3_L5_dt_150_tmax_86400
+method = 'irk_w6_GaussLegendre3'
+
+
+ref_method = 'irk_w6_GaussLegendre3'
+ref_time = 150
+
 resol_spaces = {'L5': 'L5', 'L6': 'L6'}
 if method == 'imex':
     resol_time = {'L5': [450, 225, 112.5, 56.25, 22.5, 1],
                   'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]}
-elif method == 'irk' or 'irk_RadauIIA3':
-    resol_time = {'L5': [3600, 1800, 900, 450],
+elif method == 'irk' or 'irk_RadauIIA3' or 'irk_w6_GaussLegendre3':
+    resol_time = {'L5': [1200, 600, 300],
+                  # 'L5': [3600, 1800, 900, 450],
                   'L6': [3600, 1800, 900, 450]}
 
 
 space_res = 'L5'
 
 def filename(i,space_res):
-    return folder + method + '_' + resol_spaces[space_res] + f'_dt_{resol_time[resol_spaces[space_res]][i]}.h5'
+    return folder + method + '_' + resol_spaces[space_res] + f'_dt_{resol_time[resol_spaces[space_res]][i]}_tmax_{tmax}.h5'
 
-def filename_ref(i,space_res):
-    method = 'imex'
-    resol_time = {'L5': [450, 225, 112.5, 56.25, 22.5, 1],
-                  'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]}
-    return folder + method + '_' + resol_spaces[space_res] + f'_dt_{resol_time[resol_spaces[space_res]][i]}.h5'
+def filename_ref(space_res):
+    return folder + ref_method + '_' + resol_spaces[space_res] + f'_dt_{ref_time}_tmax_{tmax}.h5'
 
-reference = filename_ref(-1, space_res)
+reference = filename_ref(space_res)
 
 
 errors_eta = []
@@ -71,12 +79,12 @@ for i in range(len(resol_time[resol_spaces[space_res]])):
 
 
 # plot those values:
-t = np.array(resol_time[space_res][:-1])
-plt.loglog(resol_time['L5'][:-1],  errors_eta[:-1], 'k.-', label = 'L5 eta')
-plt.loglog(resol_time['L5'][:-1],  errors_vel[:-1], 'r.-', label = 'L5 vel')
-# plt.loglog(resol_time['L6'][:-1],  errors_eta_L6[:-1], 'b.-', label = 'L6 eta')
-# plt.loglog(resol_time['L6'][:-1],  errors_vel_L6[:-1], 'c.-', label = 'L6 vel')
-plt.loglog(t, 1e-10*t**2, label = '2nd order' )
+t = np.array(resol_time[space_res][:])
+plt.loglog(resol_time['L5'][:],  errors_eta[:], 'k.-', label = space_res + 'eta')
+plt.loglog(resol_time['L5'][:],  errors_vel[:], 'r.-', label = space_res + 'vel')
+plt.loglog(t, 6e-12*t**2, '--', label = '2nd order' )
+plt.loglog(t, 3e-15*t**3, '--', label = '3nd order' )
+plt.loglog(t, 2e-18*t**4, '--', label = '4nd order' )
 plt.xlabel('dt')
 plt.ylabel('L2 error')
 plt.legend()
