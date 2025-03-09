@@ -14,67 +14,15 @@ if args.hybrid:
 else:
     u0, h0 = fd.split(Un)
 
+uh = (u0+u1)*half
+hh = (h0+h1)*half
+    
 eqn = (
     fd.inner(v, u1 - u0)*dx
-    + half*dT*u_op(v, u0, h0, system="full")
-    + half*dT*u_op(v, u1, h1, system="full")
+    + dT*u_op(v, uh, hh, system="full")
     + phi*(h1 - h0)*dx
-    + half*dT*h_op(phi, u0, h0, system="full")
-    + half*dT*h_op(phi, u1, h1, system="full")
+    + dT*h_op(phi, uh, hh, system="full")
 )
-
-if args.hybrid:
-    eqn += half*dT*fd.inner(fd.jump(v, n), ll1('+'))*fd.dS
-    eqn += fd.inner(fd.jump(u1, n), mu('+'))*fd.dS
-
-if args.hybrid:
-    dim = 2
-    ptype = "star"
-else:
-    dim = 0
-    ptype = "star"
-    
-pc = {
-    "pc_type": "python",
-    "pc_python_type": "firedrake.PatchPC",
-    "patch_pc_patch_save_operators": True,
-    "patch_pc_patch_partition_of_unity": True,
-    "patch_pc_patch_sub_mat_type": "seqdense",
-    "patch_pc_patch_construct_dim": dim,
-    "patch_pc_patch_construct_type": ptype,
-    "patch_pc_patch_local_type": "additive",
-    "patch_pc_patch_precompute_element_tensors": True,
-    "patch_pc_patch_symmetrise_sweep": False,
-    "patch_pc_sub_ksp_type": "preonly",
-    "patch_pc_sub_pc_type": "mumps",
-}
-
-nomgparameters = {
-    "snes_monitor": None,
-    "snes_stol": 1.0e-50,
-    "snes_rtol": 1.0e-7,
-    "snes_atol": 1.0e-50,
-    "snes_converged_reason": None,
-    "snes_lag_preconditioner": 10,
-    #"snes_lag_preconditioner_persists": None,
-    "mat_type": "matfree",
-    "ksp_type": "gmres",
-    "ksp_monitor": None,
-    #"ksp_monitor_true_residual": None,
-    #"ksp_converged_reason": None,
-    #"ksp_view": None,
-    "ksp_atol": 1e-50,
-    "ksp_rtol": 1e-8,
-    "ksp_max_it": 400,
-    "pc_type": "ksp",
-    "ksp_ksp_type": "richardson",
-    "ksp_ksp_richardson_scale": 1.,
-    "ksp_ksp_rtol": 1e-10,
-    "ksp_ksp_max_it": 3,
-    "ksp_ksp_convergence_test": 'skip',
-    "ksp_ksp_converged_maxits": None,
-    "ksp" : pc
-}
 
 parameters = {
     "snes_monitor": None,

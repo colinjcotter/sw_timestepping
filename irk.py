@@ -105,7 +105,7 @@ else:
         "ksp_patch_pc_patch_precompute_element_tensors": True,
         "ksp_patch_pc_patch_symmetrise_sweep": False,
         "ksp_patch_sub_ksp_type": "preonly",
-        "ksp_patch_sub_pc_type": "ilu",
+        "ksp_patch_sub_pc_type": "lu",
         "ksp_patch_sub_pc_factor_shift_type": "nonzero"
     }
 
@@ -182,6 +182,7 @@ for step in range(nsteps):
     tdump += dt
     t += dt
     stepper.advance()
+    stepper.stages.assign(0.)
 
     if args.one_step:
         step = nsteps-1
