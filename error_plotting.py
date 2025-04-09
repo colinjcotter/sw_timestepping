@@ -3,33 +3,55 @@ from firedrake.__future__ import interpolate
 import matplotlib.pyplot as plt
 
 
-folder = 'data1/'
+# folder = 'data1/'
 folder = 'data1/w6/'
+folder = 'data1/w6/Level_6/'
 tmax = 86400
 
-method = 'imex'
+method = 'imex_w6'
 # method = 'irk'
-method = 'irk_RadauIIA3'
-method = 'irk_GaussLegendre2'
+# method = 'irk_RadauIIA3'
+# method = 'irk_GaussLegendre2'
+# method = irk_w6_GaussLegendre3_L5_dt_150_tmax_86400
+# method = 'irk_w6_GaussLegendre3'
+# method = 'irk_w6_GaussLegendre1'
+# method = 'irk_w6_GaussLegendre2'
 
-#method = irk_w6_GaussLegendre3_L5_dt_150_tmax_86400
-method = 'irk_w6_GaussLegendre3'
 
-
-ref_method = 'irk_w6_GaussLegendre3'
-ref_time = 150
+# ref_method = 'irk_w6_GaussLegendre3'
+ref_method = 'irk_w6_GaussLegendre1'
+ref_time = 1
 
 resol_spaces = {'L5': 'L5', 'L6': 'L6'}
+
 if method == 'imex':
     resol_time = {'L5': [450, 225, 112.5, 56.25, 22.5, 1],
-                  'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]}
-elif method == 'irk' or 'irk_RadauIIA3' or 'irk_w6_GaussLegendre3':
-    resol_time = {'L5': [1200, 600, 300],
-                  # 'L5': [3600, 1800, 900, 450],
+                  # 'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]
+                  'L6': [100, 50, 25, 12.75, 5.625]
+                  }
+
+elif method == 'imex_w6':
+    resol_time = {#'L5': [150, 75, 37.5, 18.75],
+                  'L5': [150, 75, 37.5, 18.75, 9.375],
+                  # 'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]
+                  # 'L6': [100, 50, 25, 11.25, 5.625]}
+                  'L6': [100, 75, 37.5, 18.75]}  # values not available yet!k
+
+elif method == 'irk' or 'irk_RadauIIA3':
+    resol_time = {'L5': [3600, 1800, 900, 450],
                   'L6': [3600, 1800, 900, 450]}
 
+elif method == 'irk_w6_GaussLegendre1' or 'irk_w6_GaussLegendre2' or 'irk_w6_GaussLegendre3':
+    resol_time = {'L5': [1200, 600, 300, 150, 75],
+                  # 'L5': [1200, 600, 300, 150],
+                  'L6': [1200, 600, 300, 150, 75]
+                  }
 
-space_res = 'L5'
+
+
+
+# space_res = 'L5'
+space_res = 'L6'
 
 def filename(i,space_res):
     return folder + method + '_' + resol_spaces[space_res] + f'_dt_{resol_time[resol_spaces[space_res]][i]}_tmax_{tmax}.h5'
@@ -46,7 +68,7 @@ errors_vel = []
 #store values in dictionary
 errors_eta_dict = {}
 
-
+print('Ref file name:', reference)
 
 for i in range(len(resol_time[resol_spaces[space_res]])):
     print(filename(i, space_res))
@@ -75,24 +97,30 @@ for i in range(len(resol_time[resol_spaces[space_res]])):
 
     print(i, '\n Full list of errors:')
     print(errors_eta)
-    print(errors_eta)
+    print(errors_vel)
 
 
 # plot those values:
 t = np.array(resol_time[space_res][:])
-plt.loglog(resol_time['L5'][:],  errors_eta[:], 'k.-', label = space_res + 'eta')
-plt.loglog(resol_time['L5'][:],  errors_vel[:], 'r.-', label = space_res + 'vel')
-plt.loglog(t, 6e-12*t**2, '--', label = '2nd order' )
-plt.loglog(t, 3e-15*t**3, '--', label = '3nd order' )
-plt.loglog(t, 2e-18*t**4, '--', label = '4nd order' )
+plt.loglog(resol_time[space_res][:],  errors_eta[:], 'k.-', label = space_res + '_eta')
+plt.loglog(resol_time[space_res][:],  errors_vel[:], 'r.-', label = space_res + '_vel')
+plt.loglog(t, 8e-12*t**2, '--', label = '2nd order' )
+plt.loglog(t, 5e-15*t**3, '--', label = '3rd order' )
+plt.loglog(t, 4e-18*t**4, '--', label = '4th order' )
+plt.loglog(t, 3e-21*t**5, '--', label = '5th order' )
+plt.loglog(t, 1e-24*t**6, '--', label = '6th order' )
+plt.title(method)
 plt.xlabel('dt')
 plt.ylabel('L2 error')
 plt.legend()
 plt.show()
 
 
+##
+
 import sys
 sys.exit()
+
 
 # saved values from 15/11/2024
 
@@ -154,6 +182,12 @@ errors_vel_L6 = [np.float64(0.010334029801460608),
  np.float64(0.00658321071755304),
  np.float64(0.002325255489653287),
  np.float64(0.0008168956786154959)]
+
+
+
+
+
+
 
 
 
