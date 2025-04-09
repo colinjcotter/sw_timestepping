@@ -130,9 +130,12 @@ while t < tmax - 0.5*dt:
     t += dt
     tdump += dt
 
-    k2solver.solve()
-    k3solver.solve()
-    unp1solver.solve()
+    with PETSc.Log.Event("solver 1"):
+        k2solver.solve()
+    with PETSc.Log.Event("solver 2"):
+        k3solver.solve()
+    with PETSc.Log.Event("solver 3"):
+        unp1solver.solve()
     Un.assign(Unp1)
 
     if args.one_step:
@@ -142,10 +145,11 @@ while t < tmax - 0.5*dt:
     PETSc.Sys.Print("relative energy error", (energy-energy0)/energy0)
 
     if tdump > dumpt - dt*0.5:
-        etan.assign(h0 - H + b)
-        un.assign(u0)
-        qsolver.solve()
-        file_sw.write(un, etan, qn)
+        with PETSc.Log.Event("dump"):
+            etan.assign(h0 - H + b)
+            un.assign(u0)
+            qsolver.solve()
+            file_sw.write(un, etan, qn)
         tdump -= dumpt
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", tmax)
 assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"

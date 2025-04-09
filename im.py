@@ -14,67 +14,30 @@ if args.hybrid:
 else:
     u0, h0 = fd.split(Un)
 
+uh = (u0+u1)*half
+hh = (h0+h1)*half
+    
 eqn = (
     fd.inner(v, u1 - u0)*dx
-    + half*dT*u_op(v, u0, h0, system="full")
-    + half*dT*u_op(v, u1, h1, system="full")
+    + dT*u_op(v, uh, hh, system="full")
     + phi*(h1 - h0)*dx
-    + half*dT*h_op(phi, u0, h0, system="full")
-    + half*dT*h_op(phi, u1, h1, system="full")
+    + dT*h_op(phi, uh, hh, system="full")
 )
 
-if args.hybrid:
-    eqn += half*dT*fd.inner(fd.jump(v, n), ll1('+'))*fd.dS
-    eqn += fd.inner(fd.jump(u1, n), mu('+'))*fd.dS
 
-if args.hybrid:
-    dim = 2
-    ptype = "star"
-else:
-    dim = 0
-    ptype = "star"
-    
-pc = {
-    "pc_type": "python",
-    "pc_python_type": "firedrake.PatchPC",
-    "patch_pc_patch_save_operators": True,
-    "patch_pc_patch_partition_of_unity": True,
-    "patch_pc_patch_sub_mat_type": "seqdense",
-    "patch_pc_patch_construct_dim": dim,
-    "patch_pc_patch_construct_type": ptype,
-    "patch_pc_patch_local_type": "additive",
-    "patch_pc_patch_precompute_element_tensors": True,
-    "patch_pc_patch_symmetrise_sweep": False,
-    "patch_pc_sub_ksp_type": "preonly",
-    "patch_pc_sub_pc_type": "mumps",
-}
-
-nomgparameters = {
-    "snes_monitor": None,
-    "snes_stol": 1.0e-50,
-    "snes_rtol": 1.0e-7,
-    "snes_atol": 1.0e-50,
-    "snes_converged_reason": None,
-    "snes_lag_preconditioner": 10,
-    #"snes_lag_preconditioner_persists": None,
-    "mat_type": "matfree",
-    "ksp_type": "gmres",
-    "ksp_monitor": None,
-    #"ksp_monitor_true_residual": None,
-    #"ksp_converged_reason": None,
-    #"ksp_view": None,
-    "ksp_atol": 1e-50,
-    "ksp_rtol": 1e-8,
-    "ksp_max_it": 400,
-    "pc_type": "ksp",
-    "ksp_ksp_type": "richardson",
-    "ksp_ksp_richardson_scale": 1.,
-    "ksp_ksp_rtol": 1e-10,
-    "ksp_ksp_max_it": 3,
-    "ksp_ksp_convergence_test": 'skip',
-    "ksp_ksp_converged_maxits": None,
-    "ksp" : pc
-}
+class wavePC(fd.AuxiliaryOperatorPC):
+    def form(self, pc, test, trial):
+        u, p = fd.split(trial)
+        v, q = fd.split(test)
+        inner = fd.inner; div = fd.div
+        a = (
+            fd.inner(u, v)*fd.dx +
+            dT*u_op(v, u, p, system="linear")
+            + p*q*fd.dx +
+            dT*h_op(q, u, p, system="linear")
+        )
+        #Returning None as bcs
+        return (a, None)
 
 parameters = {
     "snes_monitor": None,
@@ -90,12 +53,12 @@ parameters = {
     "ksp_converged_rate": None,
     # "ksp_view": None,
     "ksp_type": "gmres",
-    "ksp_rtol": 1e-6,
+    "ksp_rtol": 1e-8,
     "ksp_atol": 1e-50,
     "ksp_max_it": 60,
     "pc_type": "ksp",
     "ksp_ksp_type": "richardson",
-    "ksp_ksp_richardson_scale": 0.99,
+    "ksp_ksp_richardson_scale": 0.95,
     "ksp_ksp_max_it": 2,
     "ksp_pc_type": "python",
     "ksp_pc_python_type": "firedrake.PatchPC",
@@ -113,9 +76,54 @@ parameters = {
 }
 
 
+semiparameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    # "snes_max_it": 1,
+    # "snes_convergence_test": "skip",
+    "snes_lag_jacobian": -2,
+    #"snes_lag_jacobian_persists": None,
+    "ksp_monitor": None,
+    "ksp_converged_rate": None,
+    # "ksp_view": None,
+    "ksp_type": "gmres",
+    "ksp_rtol": 1e-8,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    "pc_type": "composite",
+    "pc_composite_type": "multiplicative",
+    "pc_composite_pcs": "python,python",
+    "sub_0": {"pc_python_type": "__main__.wavePC",
+              "aux_pc_type": "python",
+              "aux_pc_python_type": "firedrake.HybridizationPC",
+              "aux_hybridization": {
+                  "ksp_type": "preonly",
+                  "pc_type": "lu"
+                  }
+              },
+    "sub_1" : {
+        "pc_python_type": "firedrake.PatchPC",
+        "patch_pc_patch_save_operators": True,
+        "patch_pc_patch_partition_of_unity": True,
+        "patch_pc_patch_sub_mat_type": "seqdense",
+        "patch_pc_patch_construct_dim": 0,
+        "patch_pc_patch_construct_type": "star",
+        "patch_pc_patch_local_type": "additive",
+        "patch_pc_patch_precompute_element_tensors": True,
+        "patch_pc_patch_symmetrise_sweep": False,
+        "patch_sub_ksp_type": "preonly",
+        "patch_sub_pc_type": "lu",
+        "patch_sub_pc_factor_shift_type": "nonzero"
+    }
+}
+
+
 nprob = fd.NonlinearVariationalProblem(eqn, Unp1)
 nsolver = fd.NonlinearVariationalSolver(nprob, options_prefix="swe",
-                                        solver_parameters=parameters)
+                                        solver_parameters=semiparameters)
 nsolver.set_transfer_manager(transfermanager)
 
 Unp1.assign(Un)
