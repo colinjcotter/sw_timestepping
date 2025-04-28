@@ -25,6 +25,19 @@ eqn = (
     + h_op(phi, u0, h0)
 )
 
+
+starasm = {
+    "pc_type": "python",
+    "pc_python_type": "firedrake.AssembledPC",
+    "assembled_pc_type": "python",
+    "assembled_pc_python_type": "firedrake.ASMStarPC",
+    "assembled_pc_star_sub_sub_pc_type": "lu",
+    "assembled_pc_star_sub_sub_ksp_type": "preonly",
+    "assembled_pc_star_construct_dim": 0,
+    #"assembled_pc_star_sub_sub_pc_factor_mat_ordering_type": "rcm"
+    "assembled_pc_star_backend": "tinyasm",
+}
+
 parameters = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -33,8 +46,9 @@ parameters = {
     "snes_rtol": args.ntol,
     # "snes_max_it": 1,
     # "snes_convergence_test": "skip",
-    "snes_lag_jacobian": 4,
-    "snes_lag_jacobian_persists": None,
+    "snes_lag_jacobian": 6,
+    "snes_ksp_ew": None,
+    #"snes_lag_jacobian_persists": None,
     "ksp_monitor": None,
     "ksp_converged_rate": None,
     # "ksp_view": None,
@@ -44,21 +58,22 @@ parameters = {
     "ksp_max_it": 60,
     "pc_type": "ksp",
     "ksp_ksp_type": "richardson",
-    "ksp_ksp_richardson_scale": 0.8,
+    "ksp_ksp_richardson_scale": 0.5,
     "ksp_ksp_max_it": 2,
-    "ksp_pc_type": "python",
-    "ksp_pc_python_type": "firedrake.PatchPC",
-    "ksp_patch_pc_patch_save_operators": True,
-    "ksp_patch_pc_patch_partition_of_unity": True,
-    "ksp_patch_pc_patch_sub_mat_type": "seqdense",
-    "ksp_patch_pc_patch_construct_dim": 0,
-    "ksp_patch_pc_patch_construct_type": "star",
-    "ksp_patch_pc_patch_local_type": "additive",
-    "ksp_patch_pc_patch_precompute_element_tensors": True,
-    "ksp_patch_pc_patch_symmetrise_sweep": False,
-    "ksp_patch_sub_ksp_type": "preonly",
-    "ksp_patch_sub_pc_type": "lu",
-    "ksp_patch_sub_pc_factor_shift_type": "nonzero"
+    "ksp": starasm,
+    # "ksp_pc_type": "python",
+    # "ksp_pc_python_type": "firedrake.PatchPC",
+    # "ksp_patch_pc_patch_save_operators": True,
+    # "ksp_patch_pc_patch_partition_of_unity": True,
+    # "ksp_patch_pc_patch_sub_mat_type": "seqdense",
+    # "ksp_patch_pc_patch_construct_dim": 0,
+    # "ksp_patch_pc_patch_construct_type": "star",
+    # "ksp_patch_pc_patch_local_type": "additive",
+    # "ksp_patch_pc_patch_precompute_element_tensors": True,
+    # "ksp_patch_pc_patch_symmetrise_sweep": False,
+    # "ksp_patch_sub_ksp_type": "preonly",
+    # "ksp_patch_sub_pc_type": "lu",
+    # "ksp_patch_sub_pc_factor_shift_type": "nonzero"
 }
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
