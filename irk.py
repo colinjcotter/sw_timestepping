@@ -88,7 +88,6 @@ parameters = {
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       solver_parameters=parameters)
-stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
 tn = 0.
