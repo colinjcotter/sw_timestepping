@@ -1,5 +1,5 @@
 from sw_setup import *
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre
+from irksome import Dt, MeshConstant, GalerkinTimeStepper
 from irksome.pc import RanaBase
 import numpy as np
 
@@ -7,15 +7,6 @@ MC = MeshConstant(mesh)
 
 dT = MC.Constant(dt)
 tc = MC.Constant(0.)
-
-if args.rk_type == 'RadauIIA':
-    butcher_tableau = RadauIIA(args.rk_stages)
-elif args.rk_type == 'GaussLegendre':
-    butcher_tableau = GaussLegendre(args.rk_stages)
-
-class PQPC(RanaBase):
-    def getAtilde(self, A):
-        return np.diag(butcher_tableau.c)
 
 u0, h0 = fd.split(Un)
 eqn = (
@@ -86,8 +77,9 @@ parameters = {
     "ksp" : patch
 }
 
-stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
-                      solver_parameters=parameters)
+stepper = GalerkinTimeStepper(eqn, args.rk_stages, tc, dT, Un,
+                              basis_type="integral",
+                              solver_parameters=parameters)
 stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
