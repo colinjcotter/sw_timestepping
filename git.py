@@ -1,6 +1,7 @@
-from sw_setup import *
 from irksome import Dt, MeshConstant, GalerkinTimeStepper
 from irksome.pc import RanaBase
+
+from sw_setup import *
 import numpy as np
 
 MC = MeshConstant(mesh)
@@ -14,13 +15,6 @@ eqn = (
     + u_op(v, u0, h0)
     + phi*(Dt(h0))*dx
     + h_op(phi, u0, h0)
-)
-
-Peqn = (
-    fd.inner(v, Dt(u0))*dx
-    + u_op(v, u0, h0, system="linear")
-    + phi*(Dt(h0))*dx
-    + h_op(phi, u0, h0, system="linear")
 )
 
 starasm = {
