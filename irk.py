@@ -74,7 +74,7 @@ parameters = {
     "ksp_max_it": 60,
     "pc_type": "ksp",
     "ksp_ksp_type": "gmres",
-    #"ksp_ksp_richardson_scale": 0.8,
+    "ksp_ksp_richardson_scale": 0.8,
     "ksp_ksp_max_it": 2,
     "ksp" : patch
 }

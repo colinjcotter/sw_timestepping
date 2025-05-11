@@ -30,6 +30,9 @@ starasm = {
 }
 
 patch = {
+    "ksp_type": "gmres",
+    "ksp_convergence_test": "skip",
+    "ksp_max_it": 3,
     "pc_type": "python",
     "pc_python_type": "firedrake.PatchPC",
     "patch_pc_patch_save_operators": True,
@@ -54,9 +57,9 @@ parameters = {
     "snes_rtol": args.ntol,
     # "snes_max_it": 1,
     # "snes_convergence_test": "skip",
-    "snes_lag_jacobian": 40,
-    "snes_lag_jacobian_persists": None,
-    "snes_ksp_ew": None,
+    #"snes_lag_jacobian": 40,
+    #"snes_lag_jacobian_persists": None,
+    #"snes_ksp_ew": None,
     "ksp_monitor": None,
     "ksp_converged_rate": None,
     # "ksp_view": None,
@@ -69,6 +72,91 @@ parameters = {
     #"ksp_ksp_richardson_scale": 0.8,
     "ksp_ksp_max_it": 2,
     "ksp" : patch
+}
+
+lu_params = {
+    "ksp_convergence_test": "skip",
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    "pc_factor_mat_solver_type": "mumps",
+}
+
+asm_params = {
+    "ksp_type": "gmres",
+    "ksp_convergence_test": "skip",
+    "ksp_max_it": 3,
+    #"ksp_chebyshev_esteig": "0.125,0.625,0.125,1.125",
+    "pc_type": "python",
+    "pc_python_type": "firedrake.ASMStarPC",
+    "pc_star_sub_sub_pc_type": "lu",
+    "pc_star_sub_sub_pc_factor_mat_solver_type": "umfpack",
+    "pc_star_view_patch_sizes": None,
+    "pc_star_backend": "tinyasm",
+}
+
+p1_params = {
+    "ksp_type": "gmres",
+    "ksp_max_it": 40,
+    "ksp_atol": 0,
+    "ksp_converged_reason": None,
+    "ksp_rtol": 1.0e-3,
+    "pc_type": "python",
+    "pc_python_type": "firedrake.ASMStarPC",
+    "pc_star_sub_sub_pc_type": "lu",
+    "pc_star_sub_sub_pc_factor_mat_solver_type": "umfpack",
+    "pc_star_view_patch_sizes": None,
+    "pc_star_backend": "tinyasm",
+}
+
+
+fsplit_params = {
+    "ksp_type": "preonly",
+    "pc_type": "fieldsplit",
+    "pc_fieldsplit_type": "symmetric_multiplicative",
+    "pc_fieldsplit_0_fields": ",".join(map(str, range(2*args.rk_stages))),
+    "pc_fieldsplit_1_fields": ",".join(map(str, range(2))),
+    "fieldsplit_0": asm_params,
+    "fieldsplit_1": p1_params,
+}
+
+
+parameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    #"snes_lag_jacobian": 6,
+    #"snes_lag_jacobian_persists": None,
+    "snes_ksp_ew": None,
+    #"snes_ksp_ew_rtolmax": 1.0e-2,
+    "ksp_monitor": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "pc_type": "python",
+    "pc_python_type": "firedrake.AssembledPC",
+    "assembled": fsplit_params,
+}
+
+al_params = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    #"snes_ksp_ew": None,
+    #"snes_ksp_ew_rtolmax": 1.0e-2,
+    "ksp_monitor": None,
+    "ksp_type": "gmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "pc_type": "fieldsplit",
+    "pc_fieldsplit_type": "schur",
+    "pc_python_type": "firedrake.AssembledPC",
+    "assembled": fsplit_params,
 }
 
 stepper = GalerkinTimeStepper(eqn, args.rk_stages, tc, dT, Un,
