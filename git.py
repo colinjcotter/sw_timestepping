@@ -1,4 +1,5 @@
-from irksome import Dt, MeshConstant, GalerkinTimeStepper
+from irksome import Dt, MeshConstant, GalerkinTimeStepper,\
+    IRKAuxiliaryOperatorPC
 from irksome.pc import RanaBase
 
 from sw_setup import *
@@ -8,6 +9,7 @@ MC = MeshConstant(mesh)
 
 dT = MC.Constant(dt)
 tc = MC.Constant(0.)
+gamma = MC.Constant(args.gamma)
 
 u0, h0 = fd.split(Un)
 eqn = (
@@ -15,6 +17,8 @@ eqn = (
     + u_op(v, u0, h0)
     + phi*(Dt(h0))*dx
     + h_op(phi, u0, h0)
+    + gamma*(fd.div(v)*(Dt(h0))*dx
+             + h_op(fd.div(v), u0, h0))
 )
 
 starasm = {
@@ -140,6 +144,43 @@ parameters = {
     "assembled": fsplit_params,
 }
 
+class IRKMassPC(IRKAuxiliaryOperatorPC):
+    def getNewForm(pc, u0, test):
+        return gamma*test*u0*dx        
+
+    def form(self, pc, test, trial):
+        """Implements the interface for AuxiliaryOperatorPC."""
+        appctx = self.get_appctx(pc)
+        stepper = appctx["stepper"]
+        butcher = stepper.butcher_tabl
+        F = stepper.F
+        u0 = stepper.u0
+        bcs = stepper.orig_bcs
+        v0, = F.arguments()
+
+        try:
+            # use new Form if provided
+            F, bcs = self.getNewForm(pc, u0, v0)
+        except NotImplementedError:
+            pass
+
+        try:
+            # use new ButcherTableau if provided
+            Atilde = self.getAtilde(butcher.A)
+            butcher = copy.deepcopy(butcher)
+            butcher.A = Atilde
+        except NotImplementedError:
+            pass
+
+        # get stages
+        ctx = get_appctx(pc.getDM())
+        w = ctx._x
+
+        Fnew, bcnew = stepper.get_form_and_bcs(w, tableau=butcher, F=F)
+        Jnew = derivative(Fnew, w, du=trial)
+
+        return Jnew, bcnew
+    
 al_params = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -150,18 +191,39 @@ al_params = {
     #"snes_ksp_ew": None,
     #"snes_ksp_ew_rtolmax": 1.0e-2,
     "ksp_monitor": None,
-    "ksp_type": "gmres",
+    "ksp_type": "fgmres",
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,
     "pc_type": "fieldsplit",
+    "pc_fieldsplit_0_fields": ",".join(map(str, range(0,2*args.rk_stages,2))),
+    "pc_fieldsplit_1_fields": ",".join(map(str, range(1,2*args.rk_stages,2))),
     "pc_fieldsplit_type": "schur",
-    "pc_python_type": "firedrake.AssembledPC",
-    "assembled": fsplit_params,
+    "pc_fieldsplit_schur_fact_type": "full",
+    "fieldsplit_0" : {
+        # just do a heavy GMRES solve for now (MG later)
+        "pc_type" : "python",
+        "pc_python_type": "firedrake.AssembledPC",
+        "assembled_ksp_type": "gmres",
+        "assembled_ksp_rtol": 1.0e-8,
+        "assembled_pc_type" : "python",
+        "assembled_pc_python_type": "firedrake.ASMStarPC",
+        "assembled_pc_star_sub_sub_pc_type": "lu",
+        "assembled_pc_star_sub_sub_ksp_type": "preonly",
+        "assembled_pc_star_construct_dim": 0,
+        "assembled_pc_star_backend": "tinyasm",
+    },
+    "fieldsplit_1" : {
+        # The approximate Schur complement
+        "pc_type" : "python",
+        "pc_python_type": "__main__.IRKMassPC",
+        "aux_pc_type": "bjacobi",
+        "aux_sub_pc_type": "ilu",
+    }
 }
 
 stepper = GalerkinTimeStepper(eqn, args.rk_stages, tc, dT, Un,
                               basis_type="integral",
-                              solver_parameters=parameters)
+                              solver_parameters=al_params)
 stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
