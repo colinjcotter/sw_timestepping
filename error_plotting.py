@@ -4,18 +4,29 @@ import matplotlib.pyplot as plt
 
 
 # folder = 'data1/'
-folder = 'data1/w6/'
+# folder = 'data1/w6/'
 folder = 'data1/w6/Level_6/'
+folder = 'data1/w6/Level_6/tol_1e-6/'
+
+ref_folder = 'data1/w6/Level_6/'
 tmax = 86400
 
-method = 'imex_w6'
+'''w5 runs '''
 # method = 'irk'
 # method = 'irk_RadauIIA3'
 # method = 'irk_GaussLegendre2'
 # method = irk_w6_GaussLegendre3_L5_dt_150_tmax_86400
-# method = 'irk_w6_GaussLegendre3'
+'''----'''
+
+
+# method = 'imex_w6'
 # method = 'irk_w6_GaussLegendre1'
 # method = 'irk_w6_GaussLegendre2'
+method = 'irk_w6_GaussLegendre3'
+
+# method = 'irk_w6_RadauIIA1'
+# method = 'irk_w6_RadauIIA2'
+# method = 'irk_w6_RadauIIA3'
 
 
 # ref_method = 'irk_w6_GaussLegendre3'
@@ -28,26 +39,36 @@ if method == 'imex':
     resol_time = {'L5': [450, 225, 112.5, 56.25, 22.5, 1],
                   # 'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]
                   'L6': [100, 50, 25, 12.75, 5.625]
-                  }
+    }
+
 
 elif method == 'imex_w6':
     resol_time = {#'L5': [150, 75, 37.5, 18.75],
                   'L5': [150, 75, 37.5, 18.75, 9.375],
-                  # 'L6': [225, 112.5, 56.25, 22.5, 11.25, 1]
                   # 'L6': [100, 50, 25, 11.25, 5.625]}
-                  'L6': [100, 75, 37.5, 18.75]}  # values not available yet!k
+                  'L6': [100, 75, 37.5, 18.75]
+    }
+
 
 elif method == 'irk' or 'irk_RadauIIA3':
     resol_time = {'L5': [3600, 1800, 900, 450],
-                  'L6': [3600, 1800, 900, 450]}
-
-elif method == 'irk_w6_GaussLegendre1' or 'irk_w6_GaussLegendre2' or 'irk_w6_GaussLegendre3':
-    resol_time = {'L5': [1200, 600, 300, 150, 75],
-                  # 'L5': [1200, 600, 300, 150],
-                  'L6': [1200, 600, 300, 150, 75]
+                  'L6': [3600, 1800, 900, 450]
                   }
 
 
+elif method == 'irk_w6_GaussLegendre1' or 'irk_w6_GaussLegendre2' or 'irk_w6_GaussLegendre3':
+    resol_time = {'L5': [1200, 600, 300, 150, 75],
+                  'L6': [1200, 600, 300, 150, 75, 37.5]  # GL2
+                  }
+
+elif method == 'irk_w6_RadauIIA1':
+    resol_time = {'L6': [1800, 900, 450]
+                  }
+else:
+    print('hello world')
+    pass
+
+resol_time = {'L6': [600, 300, 150, 75, 37.5]}
 
 
 # space_res = 'L5'
@@ -57,7 +78,7 @@ def filename(i,space_res):
     return folder + method + '_' + resol_spaces[space_res] + f'_dt_{resol_time[resol_spaces[space_res]][i]}_tmax_{tmax}.h5'
 
 def filename_ref(space_res):
-    return folder + ref_method + '_' + resol_spaces[space_res] + f'_dt_{ref_time}_tmax_{tmax}.h5'
+    return ref_folder + ref_method + '_' + resol_spaces[space_res] + f'_dt_{ref_time}_tmax_{tmax}.h5'
 
 reference = filename_ref(space_res)
 
