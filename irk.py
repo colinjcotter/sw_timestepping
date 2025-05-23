@@ -129,7 +129,7 @@ al_params = {
 }
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
-                      solver_parameters=al_params)
+                      solver_parameters=parameters)
 
 tdump = 0.
 tn = 0.

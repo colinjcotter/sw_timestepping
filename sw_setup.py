@@ -53,7 +53,7 @@ distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMes
 mesh = fd.IcosahedralSphereMesh(radius=R0,
                                     refinement_level=args.ref_level,
                                     degree=1,
-                                    distribution_parameters = distribution_parameters)
+                                    distribution_parameters = distribution_parameters, name="errormesh")
 R0 = fd.Constant(R0)
 x = fd.SpatialCoordinate(mesh)
 mesh.init_cell_orientations(x)
