@@ -1,6 +1,7 @@
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre, \
+from irksome import Dt, MeshConstant, GalerkinTimeStepper,\
     IRKAuxiliaryOperatorPC
 from irksome.pc import RanaBase
+
 from sw_setup import *
 import numpy as np
 
@@ -10,21 +11,14 @@ dT = MC.Constant(dt)
 tc = MC.Constant(0.)
 gamma = MC.Constant(args.gamma)
 
-if args.rk_type == 'RadauIIA':
-    butcher_tableau = RadauIIA(args.rk_stages)
-elif args.rk_type == 'GaussLegendre':
-    butcher_tableau = GaussLegendre(args.rk_stages)
-
-class PQPC(RanaBase):
-    def getAtilde(self, A):
-        return np.diag(butcher_tableau.c)
-
 u0, h0 = fd.split(Un)
 eqn = (
     fd.inner(v, Dt(u0))*dx
     + u_op(v, u0, h0)
     + phi*(Dt(h0))*dx
     + h_op(phi, u0, h0)
+    + gamma*(fd.div(v)*(Dt(h0))*dx
+             + h_op(fd.div(v), u0, h0))
 )
 
 starasm = {
@@ -40,6 +34,9 @@ starasm = {
 }
 
 patch = {
+    "ksp_type": "gmres",
+    "ksp_convergence_test": "skip",
+    "ksp_max_it": 3,
     "pc_type": "python",
     "pc_python_type": "firedrake.PatchPC",
     "patch_pc_patch_save_operators": True,
@@ -64,9 +61,9 @@ parameters = {
     "snes_rtol": args.ntol,
     # "snes_max_it": 1,
     # "snes_convergence_test": "skip",
-    "snes_lag_jacobian": 40,
-    "snes_lag_jacobian_persists": None,
-    "snes_ksp_ew": None,
+    #"snes_lag_jacobian": 40,
+    #"snes_lag_jacobian_persists": None,
+    #"snes_ksp_ew": None,
     "ksp_monitor": None,
     "ksp_converged_rate": None,
     # "ksp_view": None,
@@ -76,17 +73,113 @@ parameters = {
     "ksp_max_it": 60,
     "pc_type": "ksp",
     "ksp_ksp_type": "gmres",
-    "ksp_ksp_richardson_scale": 0.8,
+    #"ksp_ksp_richardson_scale": 0.8,
     "ksp_ksp_max_it": 2,
     "ksp" : patch
 }
 
+lu_params = {
+    "ksp_convergence_test": "skip",
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    "pc_factor_mat_solver_type": "mumps",
+}
+
+asm_params = {
+    "ksp_type": "gmres",
+    "ksp_convergence_test": "skip",
+    "ksp_max_it": 3,
+    #"ksp_chebyshev_esteig": "0.125,0.625,0.125,1.125",
+    "pc_type": "python",
+    "pc_python_type": "firedrake.ASMStarPC",
+    "pc_star_sub_sub_pc_type": "lu",
+    "pc_star_sub_sub_pc_factor_mat_solver_type": "umfpack",
+    "pc_star_view_patch_sizes": None,
+    "pc_star_backend": "tinyasm",
+}
+
+p1_params = {
+    "ksp_type": "gmres",
+    "ksp_max_it": 40,
+    "ksp_atol": 0,
+    "ksp_converged_reason": None,
+    "ksp_rtol": 1.0e-3,
+    "pc_type": "python",
+    "pc_python_type": "firedrake.ASMStarPC",
+    "pc_star_sub_sub_pc_type": "lu",
+    "pc_star_sub_sub_pc_factor_mat_solver_type": "umfpack",
+    "pc_star_view_patch_sizes": None,
+    "pc_star_backend": "tinyasm",
+}
+
+
+fsplit_params = {
+    "ksp_type": "preonly",
+    "pc_type": "fieldsplit",
+    "pc_fieldsplit_type": "symmetric_multiplicative",
+    "pc_fieldsplit_0_fields": ",".join(map(str, range(2*args.rk_stages))),
+    "pc_fieldsplit_1_fields": ",".join(map(str, range(2))),
+    "fieldsplit_0": asm_params,
+    "fieldsplit_1": p1_params,
+}
+
+
+parameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    #"snes_lag_jacobian": 6,
+    #"snes_lag_jacobian_persists": None,
+    "snes_ksp_ew": None,
+    #"snes_ksp_ew_rtolmax": 1.0e-2,
+    "ksp_monitor": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "pc_type": "python",
+    "pc_python_type": "firedrake.AssembledPC",
+    "assembled": fsplit_params,
+}
+
 class IRKMassPC(IRKAuxiliaryOperatorPC):
-    def getNewForm(self, pc, u0, test):
-        print(u0.function_space)
-        print(test.function_space)
-        _, p0 = fd.split(u0)
-        return gamma*test*p0*dx
+    def getNewForm(pc, u0, test):
+        return gamma*test*u0*dx        
+
+    def form(self, pc, test, trial):
+        """Implements the interface for AuxiliaryOperatorPC."""
+        appctx = self.get_appctx(pc)
+        stepper = appctx["stepper"]
+        butcher = stepper.butcher_tabl
+        F = stepper.F
+        u0 = stepper.u0
+        bcs = stepper.orig_bcs
+        v0, = F.arguments()
+
+        try:
+            # use new Form if provided
+            F, bcs = self.getNewForm(pc, u0, v0)
+        except NotImplementedError:
+            pass
+
+        try:
+            # use new ButcherTableau if provided
+            Atilde = self.getAtilde(butcher.A)
+            butcher = copy.deepcopy(butcher)
+            butcher.A = Atilde
+        except NotImplementedError:
+            pass
+
+        # get stages
+        ctx = get_appctx(pc.getDM())
+        w = ctx._x
+
+        Fnew, bcnew = stepper.get_form_and_bcs(w, tableau=butcher, F=F)
+        Jnew = derivative(Fnew, w, du=trial)
+
+        return Jnew, bcnew
     
 al_params = {
     "snes_monitor": None,
@@ -128,8 +221,10 @@ al_params = {
     }
 }
 
-stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
-                      solver_parameters=al_params)
+stepper = GalerkinTimeStepper(eqn, args.rk_stages, tc, dT, Un,
+                              basis_type="integral",
+                              solver_parameters=al_params)
+stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
 tn = 0.
