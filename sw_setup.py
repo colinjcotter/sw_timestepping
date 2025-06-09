@@ -25,10 +25,11 @@ parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stage
 parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
-parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
-parser.add_argument('--ktol', type=float, default=1.0e-8, help='Solver tolerance for the linear solver')
+parser.add_argument('--ntol', type=float, default=1.0e-8, help='Solver tolerance for the nonlinear solver')
+parser.add_argument('--ktol', type=float, default=1.0e-10, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
+parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default), rana - rana block triangular PC, mg - mg with monolithic patch PC.')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -50,13 +51,40 @@ name = args.filename
 deg = args.coords_degree
 distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMeshOverlapType.VERTEX, 2)}
 
-mesh = fd.IcosahedralSphereMesh(radius=R0,
-                                    refinement_level=args.ref_level,
-                                    degree=1,
-                                    distribution_parameters = distribution_parameters, name="errormesh")
+def high_order_mesh_hierarchy(mh, degree, R0):
+    meshes = []
+    for m in mh:
+        X = fd.VectorFunctionSpace(m, "Lagrange", degree)
+        new_coords = fd.Function(X).interpolate(m.coordinates)
+        x, y, z = new_coords
+        r = (x**2 + y**2 + z**2)**0.5
+        new_coords = fd.Function(X).interpolate(R0*new_coords/r)
+        new_mesh = fd.Mesh(new_coords, name="errormesh")
+        meshes.append(new_mesh)
+
+    return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
+                            mh.fine_to_coarse_cells,
+                            mh.refinements_per_level, mh.nested)
+
+basemesh = fd.IcosahedralSphereMesh(radius=R0,
+                                    refinement_level=base_level,
+                                    degree=args.coords_degree,
+                                    distribution_parameters = distribution_parameters)
+del basemesh._radius
+mh = fd.MeshHierarchy(basemesh, nrefs)
+mh = high_order_mesh_hierarchy(mh, deg, R0)
+for mesh in mh:
+    xf = mesh.coordinates
+    mesh.transfer_coordinates = fd.Function(xf)
+    x = fd.SpatialCoordinate(mesh)
+    r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
+    xf.interpolate(R0*xf/r)
+    mesh.init_cell_orientations(x)
+mesh = mh[-1]
+mesh.name="errormesh"
+
 R0 = fd.Constant(R0)
 x = fd.SpatialCoordinate(mesh)
-mesh.init_cell_orientations(x)
 cx, cy, cz = x
 
 outward_normals = fd.CellNormal(mesh)
@@ -171,21 +199,26 @@ def h_op(phi, u, h, system="full"):
 
 # monolithic solver options
 
-sparameters = {
+mgparameters = {
     "snes_monitor": None,
+    "snes_ksp_ew": None,
+    "snes_atol": 0.,
+    "snes_stol": 0.,
+    "snes_rtol": args.ntol,
+    "snes_linesearch_type": "basic",
     "mat_type": "matfree",
     "ksp_type": "fgmres",
-    "ksp_monitor_true_residual": None,
+    #"ksp_monitor_true_residual": None,
     "ksp_converged_reason": None,
-    "ksp_atol": 1e-8,
-    "ksp_rtol": 1e-8,
+    "ksp_atol": 0.,
+    "ksp_rtol": args.ktol,
     "ksp_max_it": 400,
     "pc_type": "mg",
     "pc_mg_cycle_type": "v",
     "pc_mg_type": "multiplicative",
     "mg_levels_ksp_type": "gmres",
-    "mg_levels_ksp_max_it": 3,
-    #"mg_levels_ksp_convergence_test": "skip",
+    "mg_levels_ksp_max_it": 2,
+    "mg_levels_ksp_convergence_test": "skip",
     "mg_levels_pc_type": "python",
     "mg_levels_pc_python_type": "firedrake.PatchPC",
     "mg_levels_patch_pc_patch_save_operators": True,
@@ -197,12 +230,27 @@ sparameters = {
     "mg_levels_patch_pc_patch_precompute_element_tensors": True,
     "mg_levels_patch_pc_patch_symmetrise_sweep": False,
     "mg_levels_patch_sub_ksp_type": "preonly",
-    "mg_levels_patch_sub_pc_type": "lu",
+    "mg_levels_patch_sub_pc_type": "ilu",
     "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+
     "mg_coarse_pc_type": "python",
-    "mg_coarse_pc_python_type": "firedrake.AssembledPC",
-    "mg_coarse_assembled_pc_type": "lu",
-    "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
+    "mg_coarse_pc_python_type": "firedrake.PatchPC",
+    "mg_coarse_patch_pc_patch_save_operators": True,
+    "mg_coarse_patch_pc_patch_partition_of_unity": True,
+    "mg_coarse_patch_pc_patch_sub_mat_type": "seqdense",
+    "mg_coarse_patch_pc_patch_construct_dim": 0,
+    "mg_coarse_patch_pc_patch_construct_type": "star",
+    "mg_coarse_patch_pc_patch_local_type": "additive",
+    "mg_coarse_patch_pc_patch_precompute_element_tensors": True,
+    "mg_coarse_patch_pc_patch_symmetrise_sweep": False,
+    "mg_coarse_patch_sub_ksp_type": "preonly",
+    "mg_coarse_patch_sub_pc_type": "ilu",
+    "mg_coarse_patch_sub_pc_factor_shift_type": "nonzero",
+    
+    #"mg_coarse_pc_type": "python",
+    #"mg_coarse_pc_python_type": "firedrake.AssembledPC",
+    #"mg_coarse_assembled_pc_type": "lu",
+    #"mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
 }
 
 vtransfer = mg.ManifoldTransfer()
