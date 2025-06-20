@@ -81,40 +81,15 @@ monoparameters = {
     "ksp" : patch
 }
 
-ranaparameters = {
-    "snes_monitor": None,
-    "snes_converged_reason": None,
-    "snes_linesearch_type": "basic",
-    "snes_atol": 1e-50,
-    "snes_stol": 1e-50,
-    "snes_rtol": args.ntol,
-    "snes_lag_jacobian": 40,
-    "snes_lag_jacobian_persists": None,
-    "snes_ksp_ew": None,
-    "ksp_monitor": None,
-    "ksp_converged_rate": None,
-    # "ksp_view": None,
-    "ksp_type": "gcr",
-    "ksp_rtol": args.ktol,
-    "ksp_atol": 1e-50,
-    "ksp_max_it": 60,
-    "pc_type": "ksp",
-    "ksp_ksp_type": "gmres",
-    "ksp_ksp_richardson_scale": 0.8,
-    "ksp_ksp_max_it": 2,
-    "ksp" : {
-        "pc_type": "python",
-        "pc_python_type": "irksome.RanaLD",
-        "aux" : patch
-    }
-}
 
 if args.pcscheme == "mono":
     parameters = monoparameters
+elif args.pcscheme == "mg":
+    parameters = mgparameters
 elif args.pcscheme == "rana":
     parameters = ranaparameters
 else:
-    parameters = mgparameters
+    raise NotImplementedError
 
 class IRKMassPC(IRKAuxiliaryOperatorPC):
     def getNewForm(self, pc, u0, test):
@@ -165,6 +140,7 @@ al_params = {
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       solver_parameters=parameters)
+#stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
 tn = 0.

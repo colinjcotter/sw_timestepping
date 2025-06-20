@@ -1,58 +1,64 @@
 levels = ["6"]
 imex_dts = [18.75, 37.5, 75, 100]
-irk_dts = [3600, 2400] #[37.5, 75, 150, 300, 600, 1200, 2400, 3600]
+irk_dts = [7200, 10800, 14400] #[3600, 2400, 1200, 600, 300]
+#[37.5, 75, 150, 300, 600, 1200, 2400, 3600]
 dts = irk_dts
 script = "irk"
+pcs = ["mg"]
 irks = ["GaussLegendre", "RadauIIA"]
-stages = [1] #,2,3,4]
+stages = [1,2,3]
 tmax = 86400
-ntol = 1.0e-8
-ktol = 1.0e-10
+ntol = 1.0e-6
+ktol = 1.0e-8
 williamson=6
 ncpus = [16]
 
+warmup = False
+
 import subprocess, os
 
-data = []
+rows = []
 
 for dt in dts:
     for level in levels:
-        for stage in stages:
-            args = ["--tmax", str(tmax), "--ntol", str(ntol),
-                    "--ktol", str(ktol),
-                    "--williamson", str(6), "--pcscheme", "mg"]
-            args += ["--dt", str(dt)]
-            args += ["--ref_level", str(level)]
-            args += ["--rk_stages",str(stage)]
+        for irk in irks:
+            for stage in stages:
+                for pc in pcs:
+                    options = {"tmax": tmax,
+                               "ntol": ntol,
+                               "ktol": ktol,
+                               "williamson": 6,
+                               "dt": dt,
+                               "ref_level": level,
+                               "rk_stages": stage,
+                               "pcscheme": pc,
+                               "rk_type": irk,
+                               }
+                    args = []
+                    for key, value in options.items():
+                        args += ["--"+str(key), str(value)]
+                    fname = "irk_data_"+hex(abs(hash(str(options))))
+                    try:
+                        os.remove(fname)
+                    except:
+                        pass
 
-            fname = "irk_"+hex(abs(hash(str(args))))
-            try:
-                os.remove(fname)
-            except:
-                pass
-            os.makedirs(fname)
-            args += ["--checkpointfile", fname+"/chk.h5"]
-            args += ["--filename", fname+"/data"]
-            args += ["-log_view", ":"+fname+"/out"]
-            args += ["-pcscheme", "mg"]
-            subprocess.run(["mpiexec","-n","16","python","irk.py"]+args)
+                    options["directory"] = fname
+            
+                    os.makedirs(fname)
+                    if warmup:
+                        args += ["--one_step"]
+                    args += ["--show_args"]
+                    args += ["--checkpointfile", fname+"/chk.h5"]
+                    args += ["--filename", fname+"/data"]
+                    args += ["-log_view", ":"+fname+"/log"]
+                    args += ["&>", fname+"/out"]
+                    print("mpiexec -n 16 python irk.py " + " ".join(args))
+                    print("grep Main "+fname+"/log &> "+fname+"/stats")
+                    print("cat "+fname+"/chk.h5.out >> "+fname+"/stats")
 
-            with open(fname+"/chk.h5.out") as f:
-                read_data = f.readline()
-            read_data = read_data.rsplit(sep=" ")
-            assert(read_data[2] == "step")
-            args += ["Iterations per step", read_data[3].strip("\n")]
+                    rows.append(options)
 
-            with open(fname+"/out") as f:
-                for line in f:
-                    if "Main" in line:
-                        ll = line.rsplit(sep=" ")
-                        assert(ll[7] == "Main")
-                        assert(ll[8] == "Stage:")
-                        args += ["Time", ll[9]]
-                        break
-            data.append(args)
-
-with open("experiments.dat", "w") as f:
-    for line in data:
-        f.write(str(line)+"\n")
+import pandas as pd
+df = pd.DataFrame(rows)
+df.to_csv("irks.csv")

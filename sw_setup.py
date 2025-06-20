@@ -29,7 +29,7 @@ parser.add_argument('--ntol', type=float, default=1.0e-8, help='Solver tolerance
 parser.add_argument('--ktol', type=float, default=1.0e-10, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
-parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default), rana - rana block triangular PC, mg - mg with monolithic patch PC.')
+parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default),  mg - mg with monolithic patch PC, rana - rana block preconditioner with mg on the blocks.')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -253,6 +253,68 @@ mgparameters = {
     #"mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
 }
 
+mgopts = {
+    "pc_type": "mg",
+    "pc_mg_cycle_type": "v",
+    "pc_mg_type": "multiplicative",
+    "mg_levels_ksp_type": "gmres",
+    "mg_levels_ksp_max_it": 2,
+    "mg_levels_ksp_convergence_test": "skip",
+    "mg_levels_pc_type": "python",
+    "mg_levels_pc_python_type": "firedrake.PatchPC",
+    "mg_levels_patch_pc_patch_save_operators": True,
+    "mg_levels_patch_pc_patch_partition_of_unity": True,
+    "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
+    "mg_levels_patch_pc_patch_construct_dim": 0,
+    "mg_levels_patch_pc_patch_construct_type": "star",
+    "mg_levels_patch_pc_patch_local_type": "additive",
+    "mg_levels_patch_pc_patch_precompute_element_tensors": True,
+    "mg_levels_patch_pc_patch_symmetrise_sweep": False,
+    "mg_levels_patch_sub_ksp_type": "preonly",
+    "mg_levels_patch_sub_pc_type": "lu",
+    "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+
+    "mg_coarse_pc_type": "python",
+    "mg_coarse_pc_python_type": "firedrake.PatchPC",
+    "mg_coarse_patch_pc_patch_save_operators": True,
+    "mg_coarse_patch_pc_patch_partition_of_unity": True,
+    "mg_coarse_patch_pc_patch_sub_mat_type": "seqdense",
+    "mg_coarse_patch_pc_patch_construct_dim": 0,
+    "mg_coarse_patch_pc_patch_construct_type": "star",
+    "mg_coarse_patch_pc_patch_local_type": "additive",
+    "mg_coarse_patch_pc_patch_precompute_element_tensors": True,
+    "mg_coarse_patch_pc_patch_symmetrise_sweep": False,
+    "mg_coarse_patch_sub_ksp_type": "preonly",
+    "mg_coarse_patch_sub_pc_type": "lu",
+    "mg_coarse_patch_sub_pc_factor_shift_type": "nonzero",
+}
+
+ranaparameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_ksp_ew": None,
+    #"ksp_monitor": None,
+    "ksp_converged_rate": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    "pc_type": "python",
+    "pc_python_type": "irksome.RanaLD",
+    "aux" : {
+        "pc_type": "fieldsplit",
+        "pc_fieldsplit_type": "multiplicative",
+        "fieldsplit" : mgopts
+    }
+}
+
+for i in range(args.rk_stages):
+    ranaparameters[f"aux_pc_fieldsplit_fields_{i}"]=f"{2*i},{2*i+1}"
+    
 vtransfer = mg.ManifoldTransfer()
 tm = fd.TransferManager()
 transfers = {
