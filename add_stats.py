@@ -1,9 +1,9 @@
 import pandas as pd
 
-filename = "irks2.csv"
-irks = True
+filename = "imex"
+irks = False
 
-df = pd.read_csv(filename)
+df = pd.read_csv(filename+".csv")
 
 df["time"] = None
 if irks:
@@ -32,4 +32,4 @@ for idx, value in df["directory"].items():
                 its = float(its[3])
             df.at[idx, "its per step"] = its
 
-df.to_csv(filename)
+df.to_csv(filename+"timings.csv")

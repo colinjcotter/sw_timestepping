@@ -3,7 +3,7 @@ imex_dts = [18.75, 37.5, 75, 100]
 dts = imex_dts
 tmax = 86400
 williamson=6
-ncpus = [16]
+ncpus = 8
 
 rows = []
 import os
@@ -32,7 +32,7 @@ for dt in dts:
         args += ["--filename", fname+"/data"]
         args += ["-log_view", ":"+fname+"/log"]
         args += ["&>", fname+"/out"]
-        print("mpiexec -n 16 python imex.py " + " ".join(args))
+        print("mpiexec -n "+str(ncpus)+" python imex.py " + " ".join(args))
         print("grep Main "+fname+"/log &> "+fname+"/stats")
         print("cat "+fname+"/chk.h5.out >> "+fname+"/stats")
 
