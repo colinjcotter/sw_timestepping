@@ -25,6 +25,9 @@ eqn = (
     + u_op(v, u0, h0)
     + phi*(Dt(h0))*dx
     + h_op(phi, u0, h0)
+    + gamma*(fd.div(v)*Dt(h0)*dx
+             + h_op(fd.div(v), u0, h0)
+             )
 )
 
 starasm = {
@@ -88,6 +91,8 @@ elif args.pcscheme == "mg":
     parameters = mgparameters
 elif args.pcscheme == "rana":
     parameters = ranaparameters
+elif args.pcscheme == "al":
+    parameters = alparameters
 else:
     raise NotImplementedError
 
@@ -97,46 +102,6 @@ class IRKMassPC(IRKAuxiliaryOperatorPC):
         print(test.function_space)
         _, p0 = fd.split(u0)
         return gamma*test*p0*dx
-    
-al_params = {
-    "snes_monitor": None,
-    "snes_converged_reason": None,
-    "snes_linesearch_type": "basic",
-    "snes_atol": 1e-50,
-    "snes_stol": 1e-50,
-    "snes_rtol": args.ntol,
-    #"snes_ksp_ew": None,
-    #"snes_ksp_ew_rtolmax": 1.0e-2,
-    "ksp_monitor": None,
-    "ksp_type": "fgmres",
-    "ksp_rtol": args.ktol,
-    "ksp_atol": 1e-50,
-    "pc_type": "fieldsplit",
-    "pc_fieldsplit_0_fields": ",".join(map(str, range(0,2*args.rk_stages,2))),
-    "pc_fieldsplit_1_fields": ",".join(map(str, range(1,2*args.rk_stages,2))),
-    "pc_fieldsplit_type": "schur",
-    "pc_fieldsplit_schur_fact_type": "full",
-    "fieldsplit_0" : {
-        # just do a heavy GMRES solve for now (MG later)
-        "pc_type" : "python",
-        "pc_python_type": "firedrake.AssembledPC",
-        "assembled_ksp_type": "gmres",
-        "assembled_ksp_rtol": 1.0e-8,
-        "assembled_pc_type" : "python",
-        "assembled_pc_python_type": "firedrake.ASMStarPC",
-        "assembled_pc_star_sub_sub_pc_type": "lu",
-        "assembled_pc_star_sub_sub_ksp_type": "preonly",
-        "assembled_pc_star_construct_dim": 0,
-        "assembled_pc_star_backend": "tinyasm",
-    },
-    "fieldsplit_1" : {
-        # The approximate Schur complement
-        "pc_type" : "python",
-        "pc_python_type": "__main__.IRKMassPC",
-        "aux_pc_type": "bjacobi",
-        "aux_sub_pc_type": "ilu",
-    }
-}
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       solver_parameters=parameters)

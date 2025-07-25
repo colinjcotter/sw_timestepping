@@ -289,6 +289,19 @@ mgopts = {
     "mg_coarse_patch_sub_pc_factor_shift_type": "nonzero",
 }
 
+lu = {
+    'ksp_type': 'preonly',
+    'pc_type': 'lu',
+    'pc_factor_mat_solver_type': 'mumps'
+    }
+
+ilu = {
+    'ksp_type': 'gmres',
+    'ksp_max_it': 3,
+    'pc_type': 'bjacobi',
+    'sub_pc_type': 'ilu'
+    }
+
 ranaparameters = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -308,12 +321,37 @@ ranaparameters = {
     "aux" : {
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "multiplicative",
-        "fieldsplit" : mgopts
+        "fieldsplit" : lu
     }
 }
 
 for i in range(args.rk_stages):
     ranaparameters[f"aux_pc_fieldsplit_fields_{i}"]=f"{2*i},{2*i+1}"
+
+alparameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_ksp_ew": None,
+    #"ksp_monitor": None,
+    "ksp_converged_rate": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    "pc_type": "fieldsplit",
+    "pc_fieldsplit_type": "multiplicative",
+    "fieldsplit_1" : mgopts,
+    "fieldsplit_0" : ilu,
+}
+
+alparameters["aux_pc_fieldsplit_fields_0"]=\
+    ",".join(str(2*n+1) for n in range(args.rk_stages))
+alparameters["aux_pc_fieldsplit_fields_1"]=\
+    ",".join(str(2*n) for n in range(args.rk_stages))
     
 vtransfer = mg.ManifoldTransfer()
 tm = fd.TransferManager()
