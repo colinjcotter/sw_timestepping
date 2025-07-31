@@ -1,9 +1,9 @@
-levels = ["6"]
-imex_dts = [18.75, 37.5, 75, 100]
+levels = ["3","4"]
+imex_dts = [1] #18.75, 37.5, 75, 100]
 dts = imex_dts
 tmax = 86400
 williamson=6
-ncpus = 8
+ncpus = 16
 
 rows = []
 import os

@@ -253,40 +253,42 @@ mgparameters = {
     #"mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
 }
 
+starasm = {
+    "pc_type": "python",
+    "pc_python_type": "firedrake.AssembledPC",
+    "assembled_pc_type": "python",
+    "assembled_pc_python_type": "firedrake.ASMStarPC",
+    "assembled_pc_star_sub_sub_pc_type": "lu",
+    "assembled_pc_star_sub_sub_ksp_type": "preonly",
+    "assembled_pc_star_construct_dim": 0,
+    "assembled_pc_star_backend": "tinyasm",
+}
+
+patch = {
+    "pc_type": "python",
+    "pc_python_type": "firedrake.PatchPC",
+    "patch_pc_patch_save_operators": True,
+    "patch_pc_patch_partition_of_unity": True,
+    "patch_pc_patch_sub_mat_type": "seqdense",
+    "patch_pc_patch_construct_dim": 0,
+    "patch_pc_patch_construct_type": "star",
+    "patch_pc_patch_local_type": "additive",
+    "patch_pc_patch_precompute_element_tensors": True,
+    "patch_pc_patch_symmetrise_sweep": False,
+    "patch_sub_ksp_type": "preonly",
+    "patch_sub_pc_type": "ilu",
+    #"patch_sub_pc_factor_shift_type": "nonzero"
+}
+
 mgopts = {
     "pc_type": "mg",
     "pc_mg_cycle_type": "v",
     "pc_mg_type": "multiplicative",
     "mg_levels_ksp_type": "gmres",
-    "mg_levels_ksp_max_it": 2,
+    "mg_levels_ksp_max_it": 1,
     "mg_levels_ksp_convergence_test": "skip",
-    "mg_levels_pc_type": "python",
-    "mg_levels_pc_python_type": "firedrake.PatchPC",
-    "mg_levels_patch_pc_patch_save_operators": True,
-    "mg_levels_patch_pc_patch_partition_of_unity": True,
-    "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
-    "mg_levels_patch_pc_patch_construct_dim": 0,
-    "mg_levels_patch_pc_patch_construct_type": "star",
-    "mg_levels_patch_pc_patch_local_type": "additive",
-    "mg_levels_patch_pc_patch_precompute_element_tensors": True,
-    "mg_levels_patch_pc_patch_symmetrise_sweep": False,
-    "mg_levels_patch_sub_ksp_type": "preonly",
-    "mg_levels_patch_sub_pc_type": "lu",
-    "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
-
-    "mg_coarse_pc_type": "python",
-    "mg_coarse_pc_python_type": "firedrake.PatchPC",
-    "mg_coarse_patch_pc_patch_save_operators": True,
-    "mg_coarse_patch_pc_patch_partition_of_unity": True,
-    "mg_coarse_patch_pc_patch_sub_mat_type": "seqdense",
-    "mg_coarse_patch_pc_patch_construct_dim": 0,
-    "mg_coarse_patch_pc_patch_construct_type": "star",
-    "mg_coarse_patch_pc_patch_local_type": "additive",
-    "mg_coarse_patch_pc_patch_precompute_element_tensors": True,
-    "mg_coarse_patch_pc_patch_symmetrise_sweep": False,
-    "mg_coarse_patch_sub_ksp_type": "preonly",
-    "mg_coarse_patch_sub_pc_type": "lu",
-    "mg_coarse_patch_sub_pc_factor_shift_type": "nonzero",
+    "mg_levels" : patch,
+    "mg_coarse": patch,
 }
 
 lu = {
@@ -302,6 +304,19 @@ ilu = {
     'sub_pc_type': 'ilu'
     }
 
+u0, h0 = fd.split(Un)
+
+try:
+    linear_eqn = (
+        fd.inner(v, Dt(u0))*dx
+        + u_op(v, u0, h0, system="linear")
+        + phi*(Dt(h0))*dx
+        + h_op(phi, u0, h0, system="linear")
+    )
+except NameError:
+    pass
+
+
 ranaparameters = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -316,17 +331,18 @@ ranaparameters = {
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,
     "ksp_max_it": 60,
+    "ksp_view": None,
     "pc_type": "python",
     "pc_python_type": "irksome.RanaLD",
     "aux" : {
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "multiplicative",
-        "fieldsplit" : lu
+        "fieldsplit" : mgopts
     }
 }
 
 for i in range(args.rk_stages):
-    ranaparameters[f"aux_pc_fieldsplit_fields_{i}"]=f"{2*i},{2*i+1}"
+    ranaparameters[f"aux_pc_fieldsplit_{i}_fields"]=f"{2*i},{2*i+1}"
 
 alparameters = {
     "snes_monitor": None,
@@ -344,13 +360,13 @@ alparameters = {
     "ksp_max_it": 60,
     "pc_type": "fieldsplit",
     "pc_fieldsplit_type": "multiplicative",
-    "fieldsplit_1" : mgopts,
-    "fieldsplit_0" : ilu,
+    "fieldsplit_1" : lu,
+    "fieldsplit_0" : lu,
 }
 
-alparameters["aux_pc_fieldsplit_fields_0"]=\
+alparameters["pc_fieldsplit_0_fields"]=\
     ",".join(str(2*n+1) for n in range(args.rk_stages))
-alparameters["aux_pc_fieldsplit_fields_1"]=\
+alparameters["pc_fieldsplit_1_fields"]=\
     ",".join(str(2*n) for n in range(args.rk_stages))
     
 vtransfer = mg.ManifoldTransfer()

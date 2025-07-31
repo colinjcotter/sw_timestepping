@@ -1,17 +1,17 @@
-levels = ["6"]
+levels = ["5","4","3"]
 imex_dts = [18.75, 37.5, 75, 100]
-irk_dts = [7200, 10800, 14400, 3600, 2400, 1200, 600, 300]
+irk_dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
 #[37.5, 75, 150, 300, 600, 1200, 2400, 3600]
 dts = irk_dts
 script = "irk"
 pcs = ["mg"]
 irks = ["GaussLegendre", "RadauIIA"]
-stages = [1,2,3]
+stages = [3,2,1]
 tmax = 86400
 ntol = 1.0e-6
 ktol = 1.0e-8
 williamson=6
-ncpus = [8]
+ncpus = [16]
 
 warmup = False
 
@@ -45,7 +45,7 @@ for dt in dts:
                             pass
 
                         options["directory"] = fname
-            
+                        options["ncpus"] = ncpu
                         os.makedirs(fname)
                         if warmup:
                             args += ["--one_step"]

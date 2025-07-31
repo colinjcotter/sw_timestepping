@@ -15,10 +15,6 @@ if args.rk_type == 'RadauIIA':
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 
-class PQPC(RanaBase):
-    def getAtilde(self, A):
-        return np.diag(butcher_tableau.c)
-
 u0, h0 = fd.split(Un)
 eqn = (
     fd.inner(v, Dt(u0))*dx
@@ -29,34 +25,6 @@ eqn = (
              + h_op(fd.div(v), u0, h0)
              )
 )
-
-starasm = {
-    "pc_type": "python",
-    "pc_python_type": "firedrake.AssembledPC",
-    "assembled_pc_type": "python",
-    "assembled_pc_python_type": "firedrake.ASMStarPC",
-    "assembled_pc_star_sub_sub_pc_type": "lu",
-    "assembled_pc_star_sub_sub_ksp_type": "preonly",
-    "assembled_pc_star_construct_dim": 0,
-    #"assembled_pc_star_sub_sub_pc_factor_mat_ordering_type": "rcm"
-    "assembled_pc_star_backend": "tinyasm",
-}
-
-patch = {
-    "pc_type": "python",
-    "pc_python_type": "firedrake.PatchPC",
-    "patch_pc_patch_save_operators": True,
-    "patch_pc_patch_partition_of_unity": True,
-    "patch_pc_patch_sub_mat_type": "seqdense",
-    "patch_pc_patch_construct_dim": 0,
-    "patch_pc_patch_construct_type": "star",
-    "patch_pc_patch_local_type": "additive",
-    "patch_pc_patch_precompute_element_tensors": True,
-    "patch_pc_patch_symmetrise_sweep": False,
-    "patch_sub_ksp_type": "preonly",
-    "patch_sub_pc_type": "lu",
-    #"patch_sub_pc_factor_shift_type": "nonzero"
-}
 
 monoparameters = {
     "snes_monitor": None,
@@ -132,9 +100,6 @@ for step in range(nsteps):
     stepper.advance()
     stepper.stages.assign(0.)
 
-    if args.one_step:
-        step = nsteps-1
-
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
         un.assign(u0)
@@ -142,7 +107,11 @@ for step in range(nsteps):
         file_sw.write(un, etan, qn)
         tdump -= dumpt
     itcount += stepper.solver.snes.getLinearSolveIterations()
-        
+
+    if args.one_step:
+        t = tmax
+        break
+    
 assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
