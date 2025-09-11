@@ -2,6 +2,8 @@ import firedrake as fd
 #get command arguments
 from petsc4py import PETSc
 from firedrake.__future__ import interpolate
+from irksome import Dt, MeshConstant
+from irksome.pc import RanaLD
 
 import mg
 import argparse
@@ -29,7 +31,7 @@ parser.add_argument('--ntol', type=float, default=1.0e-8, help='Solver tolerance
 parser.add_argument('--ktol', type=float, default=1.0e-10, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
-parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default),  mg - mg with monolithic patch PC, rana - rana block preconditioner with mg on the blocks.')
+parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default),  mg - mg with monolithic patch PC, rana - rana block preconditioner with mg on the blocks, waverana - rana block preconditioner using linearisation about state of rest')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -68,7 +70,7 @@ def high_order_mesh_hierarchy(mh, degree, R0):
 
 basemesh = fd.IcosahedralSphereMesh(radius=R0,
                                     refinement_level=base_level,
-                                    degree=args.coords_degree,
+                                    #degree=args.coords_degree,
                                     distribution_parameters = distribution_parameters)
 del basemesh._radius
 mh = fd.MeshHierarchy(basemesh, nrefs)
@@ -258,14 +260,13 @@ starasm = {
     "pc_python_type": "firedrake.AssembledPC",
     "assembled_pc_type": "python",
     "assembled_pc_python_type": "firedrake.ASMStarPC",
-    "assembled_pc_star_sub_sub_pc_type": "lu",
+    "assembled_pc_star_sub_sub_pc_type": "ilu",
     "assembled_pc_star_sub_sub_ksp_type": "preonly",
     "assembled_pc_star_construct_dim": 0,
     "assembled_pc_star_backend": "tinyasm",
 }
 
-patch = {
-    "pc_type": "python",
+patch0 = {
     "pc_python_type": "firedrake.PatchPC",
     "patch_pc_patch_save_operators": True,
     "patch_pc_patch_partition_of_unity": True,
@@ -273,12 +274,16 @@ patch = {
     "patch_pc_patch_construct_dim": 0,
     "patch_pc_patch_construct_type": "star",
     "patch_pc_patch_local_type": "additive",
-    "patch_pc_patch_precompute_element_tensors": True,
+    #"patch_pc_patch_precompute_element_tensors": True,
     "patch_pc_patch_symmetrise_sweep": False,
     "patch_sub_ksp_type": "preonly",
     "patch_sub_pc_type": "ilu",
-    #"patch_sub_pc_factor_shift_type": "nonzero"
+    "patch_sub_pc_factor_shift_type": "nonzero"
 }
+
+patch = {
+    "pc_type": "python"
+    } | patch0
 
 mgopts = {
     "pc_type": "mg",
@@ -304,21 +309,10 @@ ilu = {
     'sub_pc_type': 'ilu'
     }
 
-u0, h0 = fd.split(Un)
-
-try:
-    linear_eqn = (
-        fd.inner(v, Dt(u0))*dx
-        + u_op(v, u0, h0, system="linear")
-        + phi*(Dt(h0))*dx
-        + h_op(phi, u0, h0, system="linear")
-    )
-except NameError:
-    pass
-
-
 ranaparameters = {
-    "snes_monitor": None,
+    #"snes_monitor": None,
+    "snes_lag_preconditioner": 20,
+    "snes_lag_preconditioner_persists": None,
     "snes_converged_reason": None,
     "snes_linesearch_type": "basic",
     "snes_atol": 1e-50,
@@ -326,18 +320,23 @@ ranaparameters = {
     "snes_rtol": args.ntol,
     "snes_ksp_ew": None,
     #"ksp_monitor": None,
-    "ksp_converged_rate": None,
+    "ksp_converged_reason": None,
+    #"ksp_converged_rate": None,
     "ksp_type": "fgmres",
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,
     "ksp_max_it": 60,
-    "ksp_view": None,
+    #"ksp_view": None,
     "pc_type": "python",
     "pc_python_type": "irksome.RanaLD",
     "aux" : {
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "multiplicative",
-        "fieldsplit" : mgopts
+        "fieldsplit" : {"ksp_type": "gmres",
+                        "ksp_rtol": 5.0e-2,
+                        "ksp_atol": 0,
+                        "ksp_converged_reason": None
+                        }
     }
 }
 
@@ -379,8 +378,11 @@ transfers = {
 }
 transfermanager = fd.TransferManager(native_transfers=transfers)
 
+MC = MeshConstant(mesh)
 dt = args.dt
-dT.assign(dt)
+dT = MC.Constant(dt)
+tc = MC.Constant(0.)
+gamma = MC.Constant(args.gamma)
 
 x = fd.SpatialCoordinate(mesh)
 un = fd.Function(V1, name="Velocity")

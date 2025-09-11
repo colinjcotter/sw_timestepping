@@ -1,14 +1,8 @@
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre, \
+from irksome import RadauIIA, TimeStepper, GaussLegendre, \
     IRKAuxiliaryOperatorPC
-from irksome.pc import RanaBase
+
 from sw_setup import *
 import numpy as np
-
-MC = MeshConstant(mesh)
-
-dT = MC.Constant(dt)
-tc = MC.Constant(0.)
-gamma = MC.Constant(args.gamma)
 
 if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
@@ -52,11 +46,71 @@ monoparameters = {
     "ksp" : patch
 }
 
+from irksome.pc import ldu
+L, D, U = ldu(butcher_tableau.A)
+Atilde_diag = np.diag(L@D)
+
+class wavePC(fd.AuxiliaryOperatorPC):
+    def form(self, pc, trial, test):
+        u, h = fd.split(trial)
+        v, q = fd.split(test)
+        prefix = pc.getOptionsPrefix()
+        stage_prefix = prefix + f"pc_stage"
+        stage = PETSc.Options().getInt(stage_prefix)
+        c = fd.Constant(Atilde_diag[stage]*dt)
+        op = (
+            fd.inner(v, u)*dx
+            + c*(fd.inner(v, f*perp(u))*dx
+                 - fd.div(v)*g*h*dx)
+            + q*(h
+                 + c*H*fd.div(u))*dx
+             )
+        return op, None
+
+waveranaparameters = {
+    #"snes_monitor": None,
+    "snes_converged_reason": None,
+    #"snes_lag_preconditioner": -2,
+    #"snes_lag_preconditioner_persists": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_ksp_ew": None,
+    "ksp_monitor": None,
+    "ksp_converged_reason": None,
+    #"ksp_converged_rate": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    #"ksp_view": None,
+    "pc_type": "python",
+    "pc_python_type": "irksome.RanaLD",
+    "aux" : {
+        "pc_type": "fieldsplit",
+        "pc_fieldsplit_type": "multiplicative",
+    }
+}
+
+for i in range(args.rk_stages):
+    waveranaparameters[f"aux_pc_fieldsplit_{i}_fields"]=f"{2*i},{2*i+1}"
+    waveranaparameters[f"aux_fieldsplit_{i}_ksp_type"]="gmres"
+    waveranaparameters[f"aux_fieldsplit_{i}_ksp_monitor"]=None
+    waveranaparameters[f"aux_fieldsplit_{i}_ksp_atol"]=0.
+    waveranaparameters[f"aux_fieldsplit_{i}_ksp_rtol"]=1.0e-3
+    waveranaparameters[f"aux_fieldsplit_{i}_pc_type"]="python"
+    waveranaparameters[f"aux_fieldsplit_{i}_pc_python_type"]=f"{__name__}.wavePC"
+    waveranaparameters[f"aux_fieldsplit_{i}_pc_stage"]=i
+    waveranaparameters[f"aux_fieldsplit_{i}_aux_pc_type"]="lu"
+    waveranaparameters[f"aux_fieldsplit_{i}_aux_pc_factor_mat_solver_type"]="mumps"
 
 if args.pcscheme == "mono":
     parameters = monoparameters
 elif args.pcscheme == "mg":
     parameters = mgparameters
+elif args.pcscheme == "waverana":
+    parameters = waveranaparameters
 elif args.pcscheme == "rana":
     parameters = ranaparameters
 elif args.pcscheme == "al":

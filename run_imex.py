@@ -1,4 +1,4 @@
-levels = ["3","4"]
+levels = ["6"]
 imex_dts = [1] #18.75, 37.5, 75, 100]
 dts = imex_dts
 tmax = 86400
@@ -31,6 +31,7 @@ for dt in dts:
         args += ["--checkpointfile", fname+"/chk.h5"]
         args += ["--filename", fname+"/data"]
         args += ["-log_view", ":"+fname+"/log"]
+        args += ["--coords_degree", "3"]
         args += ["&>", fname+"/out"]
         print("mpiexec -n "+str(ncpus)+" python imex.py " + " ".join(args))
         print("grep Main "+fname+"/log &> "+fname+"/stats")
