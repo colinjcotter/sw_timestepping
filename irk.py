@@ -62,7 +62,7 @@ class wavePC(fd.AuxiliaryOperatorPC):
             fd.inner(v, u)*dx
             + c*(fd.inner(v, f*perp(u))*dx
                  - fd.div(v)*g*h*dx)
-            + q*(h
+            + (q + gamma*fd.div(v))*(h
                  + c*H*fd.div(u))*dx
              )
         return op, None
@@ -70,8 +70,8 @@ class wavePC(fd.AuxiliaryOperatorPC):
 waveranaparameters = {
     #"snes_monitor": None,
     "snes_converged_reason": None,
-    #"snes_lag_preconditioner": -2,
-    #"snes_lag_preconditioner_persists": None,
+    "snes_lag_preconditioner": -2,
+    "snes_lag_preconditioner_persists": "true",
     "snes_linesearch_type": "basic",
     "snes_atol": 1e-50,
     "snes_stol": 1e-50,
@@ -90,20 +90,33 @@ waveranaparameters = {
     "aux" : {
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "multiplicative",
+        "fieldsplit" : {
+            "ksp_type": "fgmres",
+            "ksp_atol": 0,
+            "ksp_rtol": 1.0e-3,
+            #"ksp_max_it": 3,
+            #"ksp_monitor": None,
+            "pc_type": "fieldsplit",
+            #"pc_composite_type": "multiplicative",
+            #"pc_composite_pcs":"python,fieldsplit",
+            "fieldsplit": {
+                "pc_python_type": f"{__name__}.wavePC",
+                "aux_ksp_type": "preonly",
+                "aux_pc_type": "lu",
+                "aux_pc_factor_mat_solver_type": "mumps"
+            },
+            # "sub_1": {
+            #     "pc_fieldsplit_type": "additive",
+            #     "fieldsplit_ksp_type": "preonly",
+            #     "fieldsplit_pc_type": "lu",
+            #     "fieldsplit_pc_factor_mat_solver_type": "mumps"
+            # },
+        }
     }
 }
-
 for i in range(args.rk_stages):
     waveranaparameters[f"aux_pc_fieldsplit_{i}_fields"]=f"{2*i},{2*i+1}"
-    waveranaparameters[f"aux_fieldsplit_{i}_ksp_type"]="gmres"
-    waveranaparameters[f"aux_fieldsplit_{i}_ksp_monitor"]=None
-    waveranaparameters[f"aux_fieldsplit_{i}_ksp_atol"]=0.
-    waveranaparameters[f"aux_fieldsplit_{i}_ksp_rtol"]=1.0e-3
-    waveranaparameters[f"aux_fieldsplit_{i}_pc_type"]="python"
-    waveranaparameters[f"aux_fieldsplit_{i}_pc_python_type"]=f"{__name__}.wavePC"
     waveranaparameters[f"aux_fieldsplit_{i}_pc_stage"]=i
-    waveranaparameters[f"aux_fieldsplit_{i}_aux_pc_type"]="lu"
-    waveranaparameters[f"aux_fieldsplit_{i}_aux_pc_factor_mat_solver_type"]="mumps"
 
 if args.pcscheme == "mono":
     parameters = monoparameters

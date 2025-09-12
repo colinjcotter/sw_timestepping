@@ -336,7 +336,7 @@ ranaparameters = {
                         "ksp_rtol": 5.0e-2,
                         "ksp_atol": 0,
                         "ksp_converged_reason": None
-                        }
+                        } | mgopts
     }
 }
 
