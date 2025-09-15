@@ -5,6 +5,7 @@ from firedrake.__future__ import interpolate
 from irksome import Dt, MeshConstant
 from irksome.pc import RanaLD
 
+import numpy as np
 import mg
 import argparse
 
@@ -309,6 +310,21 @@ ilu = {
     'sub_pc_type': 'ilu'
     }
 
+from irksome.pc import ldu
+L, D, U = ldu(butcher_tableau.A)
+Atilde_diag = np.diag(L@D)
+
+class aLPC(AuxiliaryOperatorPC):
+        def form(self, pc, trial, test):
+        prefix = pc.getOptionsPrefix()
+        stage_prefix = prefix + f"pc_stage"
+        stage = PETSc.Options().getInt(stage_prefix)
+        c = fd.Constant(Atilde_diag[stage]*dt)
+        op = (
+            c/gamma*test*trial*dx
+             )
+        return op, None
+
 ranaparameters = {
     #"snes_monitor": None,
     "snes_lag_preconditioner": 20,
@@ -331,13 +347,18 @@ ranaparameters = {
     "pc_python_type": "irksome.RanaLD",
     "aux" : {
         "pc_type": "fieldsplit",
-        "pc_fieldsplit_type": "multiplicative",
-        "fieldsplit" : {"ksp_type": "gmres",
-                        "ksp_rtol": 5.0e-2,
-                        "ksp_atol": 0,
-                        "ksp_converged_reason": None
-                        } | mgopts
-    }
+        "pc_fieldsplit_type": "schur",
+        "pc_fieldsplit_schur_fact_type": "full",
+        "fieldsplit_0_ksp_type": "gmres",
+        "fieldsplit_0_pc_type": "lu",
+        "fieldsplit_0_pc_factor_mat_solver_type": "mumps",
+        "fieldsplit_1_ksp_type": "gmres",
+        "fieldsplit_1_pc_type": "python",
+        "fieldsplit_1_pc_python_type": "fd.MassInvPC",
+        "fieldsplit_1_Mp" : {
+            "pc_type" : "bjacobi",
+            "sub_pc_type": "ilu",
+            }
 }
 
 for i in range(args.rk_stages):

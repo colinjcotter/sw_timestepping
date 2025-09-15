@@ -46,10 +46,6 @@ monoparameters = {
     "ksp" : patch
 }
 
-from irksome.pc import ldu
-L, D, U = ldu(butcher_tableau.A)
-Atilde_diag = np.diag(L@D)
-
 class wavePC(fd.AuxiliaryOperatorPC):
     def form(self, pc, trial, test):
         u, h = fd.split(trial)
@@ -66,6 +62,7 @@ class wavePC(fd.AuxiliaryOperatorPC):
                  + c*H*fd.div(u))*dx
              )
         return op, None
+
 
 waveranaparameters = {
     #"snes_monitor": None,
@@ -131,15 +128,9 @@ elif args.pcscheme == "al":
 else:
     raise NotImplementedError
 
-class IRKMassPC(IRKAuxiliaryOperatorPC):
-    def getNewForm(self, pc, u0, test):
-        print(u0.function_space)
-        print(test.function_space)
-        _, p0 = fd.split(u0)
-        return gamma*test*p0*dx
-
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
-                      solver_parameters=parameters)
+                      solver_parameters=parameters,
+                      appctx=
 #stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
