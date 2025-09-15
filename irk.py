@@ -20,6 +20,72 @@ eqn = (
              )
 )
 
+from irksome.pc import ldu
+L, D, U = ldu(butcher_tableau.A)
+Atilde_diag = np.diag(L@D)
+
+class aLPC(fd.AuxiliaryOperatorPC):
+        def form(self, pc, trial, test):
+            prefix = pc.getOptionsPrefix()
+            stage_prefix = prefix + f"pc_stage"
+            stage = PETSc.Options().getInt(stage_prefix)
+            c = fd.Constant(Atilde_diag[stage]*dt)
+            op = (
+                c/gamma*test*trial*dx
+            )
+            return op, None
+
+ranaparameters = {
+    #"snes_monitor": None,
+    "snes_lag_preconditioner": 20,
+    "snes_lag_preconditioner_persists": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_ksp_ew": None,
+    "ksp_monitor": None,
+    "ksp_converged_reason": None,
+    #"ksp_converged_rate": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    #"ksp_view": None,
+    "pc_type": "python",
+    "pc_python_type": "irksome.RanaLD",
+    "aux" : {
+        "pc_type": "fieldsplit",
+        "pc_fieldsplit_type" : "multiplicative",
+        "fieldsplit" : {
+            "ksp_type": "fgmres",
+            "ksp_atol": 0,
+            "ksp_rtol": 1.0e-3,
+            "pc_type": "fieldsplit",
+            "pc_fieldsplit_type": "schur",
+            "pc_fieldsplit_schur_fact_type": "full",
+            "fieldsplit_0_ksp_type": "gmres",
+            #"fieldsplit_0_ksp_monitor": None,
+            "fieldsplit_0_pc_type": "lu",
+            "fieldsplit_0_pc_factor_mat_solver_type": "mumps",
+            "fieldsplit_1_ksp_type": "gmres",
+            "fieldsplit_1_pc_type": "python",
+            "fieldsplit_1_pc_python_type": f"{__name__}.aLPC",
+            "fieldsplit_1_Mp" : {
+                "pc_type" : "bjacobi",
+                "sub_pc_type": "ilu",
+            }
+        }
+    }
+}
+
+for i in range(args.rk_stages):
+    ranaparameters[f"aux_pc_fieldsplit_{i}_fields"]=f"{2*i},{2*i+1}"
+    ranaparameters[f"aux_fieldsplit_{i}_fieldsplit_1_pc_stage"]=i
+
+#firedrake_2_aux_fieldsplit_0_fieldsplit_1_pc_stage
+    
 monoparameters = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -129,8 +195,7 @@ else:
     raise NotImplementedError
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
-                      solver_parameters=parameters,
-                      appctx=
+                      solver_parameters=parameters)
 #stepper.solver.set_transfer_manager(transfermanager)
 
 tdump = 0.
@@ -151,7 +216,7 @@ t = 0.
 itcount = 0
 
 for step in range(nsteps):
-    PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
+    PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}. dt={dt}\n")
 
     tdump += dt
     t += dt
