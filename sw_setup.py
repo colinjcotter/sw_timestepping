@@ -2,7 +2,7 @@ import firedrake as fd
 #get command arguments
 from petsc4py import PETSc
 from firedrake.__future__ import interpolate
-from irksome import Dt, MeshConstant
+from irksome import Dt, MeshConstant, IRKAuxiliaryOperatorPC
 from irksome.pc import RanaLD
 
 import numpy as np
@@ -309,31 +309,6 @@ ilu = {
     'pc_type': 'bjacobi',
     'sub_pc_type': 'ilu'
     }
-
-alparameters = {
-    "snes_monitor": None,
-    "snes_converged_reason": None,
-    "snes_linesearch_type": "basic",
-    "snes_atol": 1e-50,
-    "snes_stol": 1e-50,
-    "snes_rtol": args.ntol,
-    "snes_ksp_ew": None,
-    #"ksp_monitor": None,
-    "ksp_converged_rate": None,
-    "ksp_type": "fgmres",
-    "ksp_rtol": args.ktol,
-    "ksp_atol": 1e-50,
-    "ksp_max_it": 60,
-    "pc_type": "fieldsplit",
-    "pc_fieldsplit_type": "multiplicative",
-    "fieldsplit_1" : lu,
-    "fieldsplit_0" : lu,
-}
-
-alparameters["pc_fieldsplit_0_fields"]=\
-    ",".join(str(2*n+1) for n in range(args.rk_stages))
-alparameters["pc_fieldsplit_1_fields"]=\
-    ",".join(str(2*n) for n in range(args.rk_stages))
     
 vtransfer = mg.ManifoldTransfer()
 tm = fd.TransferManager()

@@ -1,5 +1,4 @@
-from irksome import RadauIIA, TimeStepper, GaussLegendre, \
-    IRKAuxiliaryOperatorPC
+from irksome import RadauIIA, TimeStepper, GaussLegendre
 
 from sw_setup import *
 import numpy as np
@@ -24,6 +23,62 @@ from irksome.pc import ldu
 L, D, U = ldu(butcher_tableau.A)
 Atilde_diag = np.diag(L@D)
 
+def IRK_aL_PC(IRKAuxiliaryOperatorPC):
+    def getNewForm(self, pc, U0, test):
+        u0, h0 = fd.split(U0)
+        w, phi = fd.split(test)
+
+        eqn = (
+            fd.inner(v, Dt(u0))*dx
+            + u_op(v, u0, h0)
+            + gamma*(fd.div(v)*Dt(h0)*dx
+                     + h_op(fd.div(v), u0, h0)
+                     )
+            + g/gamma*phi*h0*dx
+        )
+
+alparameters = {
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_linesearch_type": "basic",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_ksp_ew": None,
+    #"ksp_monitor": None,
+    "ksp_converged_rate": None,
+    "ksp_type": "fgmres",
+    "ksp_rtol": args.ktol,
+    "ksp_atol": 1e-50,
+    "ksp_max_it": 60,
+    "pc_type": "python",
+    "pc_python_type": f"{__name__}.aLPC",
+    "aux": {
+        "ksp_type": "preonly",
+        "pc_type": "fieldsplit",
+        "pc_fieldsplit_type": "schur",
+        "pc_fieldsplit_schur_fact_type": "full",
+        "fieldsplit_0_ksp_type": "gmres",
+        #"fieldsplit_0_ksp_max_it": 1,
+        "fieldsplit_0_ksp_atol": 0,
+        "fieldsplit_0_ksp_rtol": 1.0e-7,
+        "fieldsplit_0" : mgopts,
+        "fieldsplit_1_ksp_type": "preonly",
+        "fieldsplit_1_ksp_converged_reason": None,
+        "fieldsplit_1_ksp_atol": 0.,
+        #"fieldsplit_1_ksp_max_it": 1,
+        "fieldsplit_1_ksp_rtol": 1.0e-7,
+        "fieldsplit_1_pc_type" : "bjacobi",
+        "fieldsplit_1_sub_pc_type": "ilu",
+        }
+}
+
+alparameters["pc_fieldsplit_0_fields"]=\
+    ",".join(str(2*n+1) for n in range(args.rk_stages))
+alparameters["pc_fieldsplit_1_fields"]=\
+    ",".join(str(2*n) for n in range(args.rk_stages))
+
+
 class aLPC(fd.AuxiliaryOperatorPC):
         def form(self, pc, trial, test):
             prefix = pc.getOptionsPrefix()
@@ -31,7 +86,7 @@ class aLPC(fd.AuxiliaryOperatorPC):
             stage = PETSc.Options().getInt(stage_prefix)
             c = fd.Constant(Atilde_diag[stage]*dt)
             op = (
-                c/gamma*test*trial*dx
+                c/gamma*g*test*trial*dx
             )
             return op, None
 
