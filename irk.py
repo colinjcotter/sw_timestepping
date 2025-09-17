@@ -23,7 +23,7 @@ from irksome.pc import ldu
 L, D, U = ldu(butcher_tableau.A)
 Atilde_diag = np.diag(L@D)
 
-def IRK_aL_PC(IRKAuxiliaryOperatorPC):
+class IRK_aL_PC(IRKAuxiliaryOperatorPC):
     def getNewForm(self, pc, U0, test):
         u0, h0 = fd.split(U0)
         w, phi = fd.split(test)
@@ -36,6 +36,8 @@ def IRK_aL_PC(IRKAuxiliaryOperatorPC):
                      )
             + g/gamma*phi*h0*dx
         )
+        return eqn, None
+
 
 alparameters = {
     "snes_monitor": None,
@@ -45,27 +47,28 @@ alparameters = {
     "snes_stol": 1e-50,
     "snes_rtol": args.ntol,
     "snes_ksp_ew": None,
-    #"ksp_monitor": None,
+    "ksp_monitor": None,
     "ksp_converged_rate": None,
     "ksp_type": "fgmres",
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,
     "ksp_max_it": 60,
     "pc_type": "python",
-    "pc_python_type": f"{__name__}.aLPC",
+    "pc_python_type": f"{__name__}.IRK_aL_PC",
     "aux": {
         "ksp_type": "preonly",
         "pc_type": "fieldsplit",
         "pc_fieldsplit_type": "schur",
         "pc_fieldsplit_schur_fact_type": "full",
-        "fieldsplit_0_ksp_type": "gmres",
+        "fieldsplit_0_ksp_type": "preonly",
         #"fieldsplit_0_ksp_max_it": 1,
         "fieldsplit_0_ksp_atol": 0,
         "fieldsplit_0_ksp_rtol": 1.0e-7,
         "fieldsplit_0" : mgopts,
         "fieldsplit_1_ksp_type": "preonly",
-        "fieldsplit_1_ksp_converged_reason": None,
+        #"fieldsplit_1_ksp_converged_reason": None,
         "fieldsplit_1_ksp_atol": 0.,
+        #"fieldsplit_1_ksp_monitor": None,
         #"fieldsplit_1_ksp_max_it": 1,
         "fieldsplit_1_ksp_rtol": 1.0e-7,
         "fieldsplit_1_pc_type" : "bjacobi",
@@ -73,10 +76,10 @@ alparameters = {
         }
 }
 
-alparameters["pc_fieldsplit_0_fields"]=\
-    ",".join(str(2*n+1) for n in range(args.rk_stages))
-alparameters["pc_fieldsplit_1_fields"]=\
+alparameters["aux_pc_fieldsplit_0_fields"]=\
     ",".join(str(2*n) for n in range(args.rk_stages))
+alparameters["aux_pc_fieldsplit_1_fields"]=\
+    ",".join(str(2*n+1) for n in range(args.rk_stages))
 
 
 class aLPC(fd.AuxiliaryOperatorPC):

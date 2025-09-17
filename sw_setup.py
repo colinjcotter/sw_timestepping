@@ -32,7 +32,7 @@ parser.add_argument('--ntol', type=float, default=1.0e-8, help='Solver tolerance
 parser.add_argument('--ktol', type=float, default=1.0e-10, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
-parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default),  mg - mg with monolithic patch PC, rana - rana block preconditioner with mg on the blocks, waverana - rana block preconditioner using linearisation about state of rest')
+parser.add_argument('--pcscheme', type=str, default="mono", help='Preconditioner option: mono - monolithic patch PC (default),  mg - mg with monolithic patch PC, rana - rana block preconditioner with mg on the blocks, waverana - rana block preconditioner using linearisation about state of rest. al - monolithic augmented Lagrangian')
 
 args = parser.parse_known_args()
 args = args[0]
