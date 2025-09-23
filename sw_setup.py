@@ -119,7 +119,7 @@ if args.hybrid:
         T = fd.FunctionSpace(mesh, "HDivT", degree+1)
     W = fd.MixedFunctionSpace((V1, V2, T))
 elif args.vfs:
-    W = fd.VectorFunctionSpace(V1, dim=2)
+    W = fd.VectorFunctionSpace(mesh, family, degree+1, dim=2)
 else:
     W = fd.MixedFunctionSpace((V1, V2))
 
@@ -128,10 +128,10 @@ if args.hybrid:
     v, phi, mu = fd.TestFunctions(W)
 elif args.vfs:
     uG = fd.TrialFunction(W)
-    u = U[0,:]
-    G = U[1,:]
-    duG = fd.TrialFunction(W)
-    w = duG[0,:]
+    u = uG[0,:]
+    G = uG[1,:]
+    duG = fd.TestFunction(W)
+    v = duG[0,:]
     dG = duG[1,:]
 else:
     u, eta = fd.TrialFunctions(W)
@@ -228,9 +228,7 @@ def h_op(phi, u, h, system="full"):
 def G_op(v, u, G, system="full"):
     if system == "linear":
         return fd.inner(v, u*H)*dx
-    if system == "nonlinear":
-        return fd.inner(v, u*(-fd.div(G)+H))*dx
-
+    return fd.inner(v, u*(-fd.div(G)+H))*dx
 
 # monolithic solver options
 
@@ -365,9 +363,9 @@ etan = fd.Function(V2, name="Elevation")
 if args.hybrid:
     u0, h0, ll0 = Un.subfunctions
 elif args.vfs:
-    u0 = Function(V1)
-    h0 = Function(V2)
-    G0 = Function(V1)
+    u0 = fd.Function(V1)
+    h0 = fd.Function(V2)
+    G0 = fd.Function(V1)
     # we will assign to these and then interpolate
 else:
     u0, h0 = Un.subfunctions
@@ -427,7 +425,7 @@ if args.vfs:
     # Set up G and then U
 
     #Adjust H to numerical mean
-    H.assign(H - assemble(h0*dx)/assemble(One*dx))
+    H.assign(H - fd.assemble(h0*dx)/fd.assemble(One*dx))
     #move h0 to mean-zero
     h0.assign(h0 - H)
 
@@ -441,14 +439,24 @@ if args.vfs:
     vg, pg = fd.split(UG)
     wg, qg = fd.split(VG)
     eqn = (
-        fd.inner(vg, wg) - div(wg)*pg
-        + qg*(div(vg) + h0)
+        fd.inner(vg, wg) - fd.div(wg)*pg
+        + qg*(fd.div(vg) + h0)
         )*dx
-    v_basis = VectorSpaceBasis(constant=True)
-    nullspace = MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
-    solve(eqn == 0, UG, solver_parameters=lu,
-          nullspace=nullspace)
-    G0.assign(vg)
+    v_basis = fd.VectorSpaceBasis(constant=True)
+    nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
+    lparams = {
+    "mat_type": "matfree",
+    "snes_type": "ksponly",
+    "ksp_type": "preonly",
+    "pc_type": "python",
+    'pc_python_type': 'firedrake.HybridizationPC',
+    'hybridization': {'ksp_type': 'preonly',
+                      'pc_type': 'lu',
+                      "pc_factor_mat_solver_type":'mumps'
+                      }}
+    fd.solve(eqn == 0, UG, solver_parameters=lparams,
+             nullspace=nullspace)
+    G0.interpolate(vg)
     Un.sub(0).assign(u0)
     Un.sub(1).assign(G0)
     

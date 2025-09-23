@@ -9,10 +9,11 @@ elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 
 if args.vfs:
-    u0, G0 = fd.split(Un)
+    u0 = Un.sub(0)
+    G0 = Un.sub(0)
     eqn = (
         fd.inner(v, Dt(u0))*dx
-        + u_op(v, u0, -div(G0))
+        + u_op(v, u0, -fd.div(G0))
         + fd.inner(dG, Dt(G0))*dx
         + G_op(dG, u0, G0)
     )
@@ -257,6 +258,8 @@ for i in range(args.rk_stages):
 
 if args.pcscheme == "mono":
     parameters = monoparameters
+elif args.pcscheme == "lu":
+    parameters = lu
 elif args.pcscheme == "mg":
     parameters = mgparameters
 elif args.pcscheme == "waverana":
@@ -281,7 +284,7 @@ if args.vfs:
     U0, G0 = Un.subfunctions
     etan.interpolate(-fd.div(G0))
 else:
-u0, h0 = Un.subfunctions
+    u0, h0 = Un.subfunctions
 etan.assign(h0 - H + b)
 un.assign(u0)
 qsolver.solve()
