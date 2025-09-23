@@ -69,7 +69,7 @@ alparameters = {
         #"fieldsplit_1_ksp_converged_reason": None,
         "fieldsplit_1_ksp_atol": 0.,
         #"fieldsplit_1_ksp_monitor": None,
-        #"fieldsplit_1_ksp_max_it": 1,
+        "fieldsplit_1_ksp_max_it": 3,
         "fieldsplit_1_ksp_rtol": 1.0e-7,
         "fieldsplit_1_pc_type" : "bjacobi",
         "fieldsplit_1_sub_pc_type": "ilu",
@@ -255,6 +255,7 @@ elif args.pcscheme == "waverana":
 elif args.pcscheme == "rana":
     parameters = ranaparameters
 elif args.pcscheme == "al":
+    print(Atilde_diag)
     parameters = alparameters
 else:
     raise NotImplementedError

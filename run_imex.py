@@ -1,4 +1,4 @@
-levels = ["6"]
+levels = ["7"]
 imex_dts = [1] #18.75, 37.5, 75, 100]
 dts = imex_dts
 tmax = 86400
