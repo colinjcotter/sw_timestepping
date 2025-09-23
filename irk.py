@@ -8,16 +8,25 @@ if args.rk_type == 'RadauIIA':
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 
-u0, h0 = fd.split(Un)
-eqn = (
-    fd.inner(v, Dt(u0))*dx
-    + u_op(v, u0, h0)
-    + phi*(Dt(h0))*dx
-    + h_op(phi, u0, h0)
-    + gamma*(fd.div(v)*Dt(h0)*dx
-             + h_op(fd.div(v), u0, h0)
-             )
-)
+if args.vfs:
+    u0, G0 = fd.split(Un)
+    eqn = (
+        fd.inner(v, Dt(u0))*dx
+        + u_op(v, u0, -div(G0))
+        + fd.inner(dG, Dt(G0))*dx
+        + G_op(dG, u0, G0)
+    )
+else:
+    u0, h0 = fd.split(Un)
+    eqn = (
+        fd.inner(v, Dt(u0))*dx
+        + u_op(v, u0, h0)
+        + phi*(Dt(h0))*dx
+        + h_op(phi, u0, h0)
+        + gamma*(fd.div(v)*Dt(h0)*dx
+                 + h_op(fd.div(v), u0, h0)
+                 )
+    )
 
 from irksome.pc import ldu
 L, D, U = ldu(butcher_tableau.A)
@@ -268,6 +277,10 @@ tn = 0.
 
 from firedrake.output import VTKFile
 file_sw = VTKFile(name+'.pvd')
+if args.vfs:
+    U0, G0 = Un.subfunctions
+    etan.interpolate(-fd.div(G0))
+else:
 u0, h0 = Un.subfunctions
 etan.assign(h0 - H + b)
 un.assign(u0)

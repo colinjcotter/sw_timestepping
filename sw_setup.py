@@ -24,6 +24,7 @@ parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form.')
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--hybrid', action='store_true', help='Use broken formulation with trace multipliers.')
+parser.add_argument('--vfs', action='store_true', help='use Hdiv-Hdiv formulation.')
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
 parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
@@ -117,12 +118,21 @@ if args.hybrid:
     else:
         T = fd.FunctionSpace(mesh, "HDivT", degree+1)
     W = fd.MixedFunctionSpace((V1, V2, T))
+elif args.vfs:
+    W = fd.VectorFunctionSpace(V1, dim=2)
 else:
     W = fd.MixedFunctionSpace((V1, V2))
 
 if args.hybrid:
     u, eta, ll = fd.TrialFunctions(W)
     v, phi, mu = fd.TestFunctions(W)
+elif args.vfs:
+    uG = fd.TrialFunction(W)
+    u = U[0,:]
+    G = U[1,:]
+    duG = fd.TrialFunction(W)
+    w = duG[0,:]
+    dG = duG[1,:]
 else:
     u, eta = fd.TrialFunctions(W)
     v, phi = fd.TestFunctions(W)
@@ -142,6 +152,9 @@ dx = fd.dx
 Un = fd.Function(W)
 if args.hybrid:
     u0, h0, ll0 = fd.split(Un)
+elif args.vfs:
+    u0 = Un[0,:]
+    G0 = Un[1,:]
 else:
     u0, h0 = fd.split(Un)
 n = fd.FacetNormal(mesh)
@@ -199,6 +212,22 @@ def h_op(phi, u, h, system="full"):
     return (- fd.inner(fd.grad(phi), u)*h*dx
             + fd.jump(phi)*(unp*h('+') - unm*h('-'))*dS
             )
+
+# h = H - div(G)
+# then
+# h_t + div(G_t) = 0
+# so h = const - div(G), which is consistent
+
+# h_t + div(u(H-div(G))) = 0
+# G_t + u*(H - div(G)) = 0
+# what was the minus sign for?
+
+def G_op(v, u, G, system="full"):
+    if system == "linear":
+        return fd.inner(v, u*H)*dx
+    if system == "nonlinear":
+        return fd.inner(v, u*(-fd.div(G)+H))*dx
+
 
 # monolithic solver options
 
@@ -332,6 +361,11 @@ etan = fd.Function(V2, name="Elevation")
 
 if args.hybrid:
     u0, h0, ll0 = Un.subfunctions
+elif args.vfs:
+    u0 = Function(V1)
+    h0 = Function(V2)
+    G0 = Function(V1)
+    # we will assign to these and then interpolate
 else:
     u0, h0 = Un.subfunctions
 
@@ -385,6 +419,33 @@ elif testcase == 6:
     h0.interpolate(Dexpr)
 else:
     raise NotImplementedError
+
+if args.vfs:
+    # Set up G and then U
+
+    #Adjust H to numerical mean
+    H.assign(H - assemble(h0*dx)/assemble(One*dx))
+    #move h0 to mean-zero
+    h0.assign(h0 - H)
+
+    #Solve mixed system for G such that div G = -h0
+    # v + grad(phi) = 0
+    # div(v) = -h0
+
+    WG = V1 * V2
+    UG = fd.Function(WG)
+    VG = fd.TestFunction(WG)
+    vg, pg = fd.split(UG)
+    wg, qg = fd.split(VG)
+    eqn = (
+        fd.inner(vg, wg) - div(wg)*pg
+        + qg*(div(vg) + h0)
+        )*dx
+    v_basis = VectorSpaceBasis(constant=True)
+    nullspace = MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
+    solve(eqn == 0, UG, solver_parameters=lu,
+          nullspace=nullspace)
+    G0.assign(vg)
 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)
