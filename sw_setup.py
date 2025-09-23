@@ -218,9 +218,12 @@ def h_op(phi, u, h, system="full"):
 # h_t + div(G_t) = 0
 # so h = const - div(G), which is consistent
 
+# the equation actually is
+# h_t + div(uh) = 0
 # h_t + div(u(H-div(G))) = 0
+# (div G_t) + div(u(H-div(G))) = 0
+# div (G_t + u(H-div(G))) = 0
 # G_t + u*(H - div(G)) = 0
-# what was the minus sign for?
 
 def G_op(v, u, G, system="full"):
     if system == "linear":
@@ -446,7 +449,9 @@ if args.vfs:
     solve(eqn == 0, UG, solver_parameters=lu,
           nullspace=nullspace)
     G0.assign(vg)
-
+    Un.sub(0).assign(u0)
+    Un.sub(1).assign(G0)
+    
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)
 
