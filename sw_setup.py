@@ -221,14 +221,14 @@ def h_op(phi, u, h, system="full"):
 # the equation actually is
 # h_t + div(uh) = 0
 # h_t + div(u(H-div(G))) = 0
-# (div G_t) + div(u(H-div(G))) = 0
-# div (G_t + u(H-div(G))) = 0
-# G_t + u*(H - div(G)) = 0
+# (-div G_t) + div(u(H-div(G))) = 0
+# div (G_t + u(div(G)-H)) = 0
+# G_t + u*(div(G)-H) = 0
 
 def G_op(v, u, G, system="full"):
     if system == "linear":
         return fd.inner(v, u*H)*dx
-    return fd.inner(v, u*(-fd.div(G)+H))*dx
+    return fd.inner(v, u*(fd.div(G)-H))*dx
 
 # monolithic solver options
 
@@ -425,10 +425,12 @@ if args.vfs:
     # Set up G and then U
 
     #Adjust H to numerical mean
-    H.assign(H - fd.assemble(h0*dx)/fd.assemble(One*dx))
-    #move h0 to mean-zero
-    h0.assign(h0 - H)
+    hmean = fd.assemble(h0*dx)/fd.assemble(One*dx)
+    H.assign(hmean)
+    val = np.abs(fd.assemble((h0-H)*dx)/fd.assemble(One*dx))
+    assert val < 1.0e-7, val
 
+    fd.VTKFile("hcheck.pvd").write(h0)
     #Solve mixed system for G such that div G = -h0
     # v + grad(phi) = 0
     # div(v) = -h0
@@ -440,26 +442,35 @@ if args.vfs:
     wg, qg = fd.split(VG)
     eqn = (
         fd.inner(vg, wg) - fd.div(wg)*pg
-        + qg*(fd.div(vg) + h0)
+        + qg*(fd.div(vg) + h0 - H)
         )*dx
+    
     v_basis = fd.VectorSpaceBasis(constant=True)
     nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
     lparams = {
-    "mat_type": "matfree",
-    "snes_type": "ksponly",
-    "ksp_type": "preonly",
-    "pc_type": "python",
-    'pc_python_type': 'firedrake.HybridizationPC',
-    'hybridization': {'ksp_type': 'preonly',
-                      'pc_type': 'lu',
-                      "pc_factor_mat_solver_type":'mumps'
-                      }}
-    fd.solve(eqn == 0, UG, solver_parameters=lparams,
-             nullspace=nullspace)
-    G0.interpolate(vg)
+        "mat_type": "matfree",
+        "snes_type": "ksponly",
+        "ksp_type": "gmres",
+        "ksp_rtol": 1.0e-10,
+        "ksp_monitor": None,
+        "pc_type": "python",
+        'pc_python_type': 'firedrake.HybridizationPC',
+        'hybridization': {'ksp_type': 'preonly',
+                          'pc_type': 'lu',
+                          "pc_factor_mat_solver_type":'mumps'
+                          }}
+    G_setup_prob = fd.NonlinearVariationalProblem(
+        eqn, UG)
+    G_setup_solver = fd.NonlinearVariationalSolver(G_setup_prob,
+                                                   solver_parameters=lparams,
+                                                   nullspace=nullspace)
+    G_setup_solver.solve()
+    G0.project(vg)
     Un.sub(0).assign(u0)
     Un.sub(1).assign(G0)
-    
+    print(fd.norm(fd.div(vg)), fd.assemble((h0-H)*dx), H)
+    val = fd.norm(fd.div(vg) + (h0-H))/fd.norm(h0)
+    assert val < 1.0e-7, val 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)
 
