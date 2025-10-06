@@ -50,6 +50,8 @@ alparameters = {
     "ksp_monitor": None,
     "ksp_converged_rate": None,
     "ksp_type": "fgmres",
+    #"ksp_gmres_modifiedgramschmidt" : None,
+    "ksp_gmres_cgs_refinement_type" : "refine_always",
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,
     "ksp_max_it": 60,
