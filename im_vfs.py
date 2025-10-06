@@ -18,10 +18,11 @@ eqn = (
 )
 
 Prob0 = fd.NonlinearVariationalProblem(eqn, Unp1)
+
 luparams = {
     "snes_monitor": None,
     "snes_ksp_ew": None,
-    "snes_lag_preconditioner": 10,
+    "snes_lag_preconditioner": 100,
     "snes_lag_preconditioner_persists": None,
     "snes_stol": 0,
     "snes_atol": 0,
@@ -30,8 +31,43 @@ luparams = {
     "ksp_type": "gmres",
     "ksp_monitor": None,
     "pc_type": "lu",
-    "pc_factor_mat_solver_type": "mumps"
+    "pc_factor_mat_solver_type": "superlu_dist",
+    "pc_precision": "single"
     }
+
+mgparams = {
+    "snes_monitor": None,
+    "snes_ksp_ew": None,
+    "snes_lag_preconditioner": 100,
+    "snes_lag_preconditioner_persists": None,
+    "snes_stol": 0,
+    "snes_atol": 0,
+    "snes_rtol": args.ntol,
+    "mat_type": "aij",
+    "ksp_type": "gmres",
+    "ksp_monitor": None,
+    "pc_type": "mg",
+    "pc_mg_cycle_type": "v",
+    "pc_mg_type": "multiplicative",
+    "mg_levels_ksp_type": "richardson",
+    "mg_levels_ksp_max_it": 2,
+    "mg_levels_ksp_convergence_test": "skip",
+    "mg_levels_pc_type": "bjacobi",
+    "mg_levels_sub_pc_type": "lu",
+    "mg_coarse_pc_type": "python",
+    "mg_coarse_pc_python_type": "firedrake.PatchPC",
+    "mg_coarse_patch_pc_patch_save_operators": True,
+    "mg_coarse_patch_pc_patch_partition_of_unity": True,
+    "mg_coarse_patch_pc_patch_sub_mat_type": "seqdense",
+    "mg_coarse_patch_pc_patch_construct_dim": 0,
+    "mg_coarse_patch_pc_patch_construct_type": "star",
+    "mg_coarse_patch_pc_patch_local_type": "additive",
+    "mg_coarse_patch_pc_patch_precompute_element_tensors": True,
+    "mg_coarse_patch_pc_patch_symmetrise_sweep": False,
+    "mg_coarse_patch_sub_ksp_type": "preonly",
+    "mg_coarse_patch_sub_pc_type": "ilu",
+    "mg_coarse_patch_sub_pc_factor_shift_type": "nonzero",
+}
 
 Solver0 = fd.NonlinearVariationalSolver(Prob0, solver_parameters=luparams)
 

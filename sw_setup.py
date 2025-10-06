@@ -429,42 +429,51 @@ if args.vfs:
     H.assign(hmean)
     val = np.abs(fd.assemble((h0-H)*dx)/fd.assemble(One*dx))
     assert val < 1.0e-7, val
+    print(val)
 
     fd.VTKFile("hcheck.pvd").write(h0)
-    #Solve mixed system for G such that div G = -h0
+    #Solve mixed system for G such that div G = H-h0
     # v + grad(phi) = 0
-    # div(v) = -h0
+    # div(v) = H-h0
 
     WG = V1 * V2
-    UG = fd.Function(WG)
+    UG0 = fd.Function(WG)
+    UG = fd.TrialFunction(WG)
     VG = fd.TestFunction(WG)
     vg, pg = fd.split(UG)
     wg, qg = fd.split(VG)
-    eqn = (
+    a = (
         fd.inner(vg, wg) - fd.div(wg)*pg
-        + qg*(fd.div(vg) + h0 - H)
-        )*dx
+        + qg*(fd.div(vg))
+    )*dx
+    L = (H-h0)*qg*dx
     
     v_basis = fd.VectorSpaceBasis(constant=True)
     nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
-    lparams = {
+
+    hybridparams = {
         "mat_type": "matfree",
         "snes_type": "ksponly",
         "ksp_type": "gmres",
         "ksp_rtol": 1.0e-10,
         "ksp_monitor": None,
+        "ksp_error_if_not_converged": None,
         "pc_type": "python",
         'pc_python_type': 'firedrake.HybridizationPC',
         'hybridization': {'ksp_type': 'preonly',
+                          "ksp_error_if_not_converged": None,
                           'pc_type': 'lu',
-                          "pc_factor_mat_solver_type":'mumps'
-                          }}
-    G_setup_prob = fd.NonlinearVariationalProblem(
-        eqn, UG)
-    G_setup_solver = fd.NonlinearVariationalSolver(G_setup_prob,
-                                                   solver_parameters=lparams,
-                                                   nullspace=nullspace)
+                          'pc_factor_mat_solver_type':'mumps'                          }
+    }
+    v_basis = fd.VectorSpaceBasis(constant=True)
+    nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
+    G_setup_prob = fd.LinearVariationalProblem(a, L, UG0)
+    G_setup_solver = fd.LinearVariationalSolver(G_setup_prob,
+                                                nullspace=nullspace,
+                                                solver_parameters=
+                                                hybridparams)
     G_setup_solver.solve()
+    vg, pg = fd.split(UG0)
     G0.project(vg)
     Un.sub(0).assign(u0)
     Un.sub(1).assign(G0)
