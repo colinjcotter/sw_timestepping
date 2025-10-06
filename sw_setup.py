@@ -451,16 +451,18 @@ if args.vfs:
         "mat_type": "matfree",
         "snes_type": "ksponly",
         "ksp_type": "gmres",
+        "ksp_error_if_not_converged": None,
         "ksp_rtol": 1.0e-10,
         "ksp_monitor": None,
         "pc_type": "python",
         'pc_python_type': 'firedrake.HybridizationPC',
         'hybridization': {'ksp_type': 'preonly',
                           'pc_type': 'lu',
-                          "pc_factor_mat_solver_type":'mumps'
-                          }}
+                          "pc_factor_mat_solver_type":'mumps', 
+                          },
+    }
     G_setup_prob = fd.NonlinearVariationalProblem(
-        eqn, UG)
+        eqn, UG, nullspace=nullspace)
     G_setup_solver = fd.NonlinearVariationalSolver(G_setup_prob,
                                                    solver_parameters=lparams,
                                                    nullspace=nullspace)
