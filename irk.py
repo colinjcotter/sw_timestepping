@@ -59,6 +59,7 @@ alparameters = {
     "snes_ksp_ew": None,
     "ksp_monitor": None,
     "ksp_converged_rate": None,
+    "ksp_gmres_cgs_refinement_type" : "refine_always",
     "ksp_type": "fgmres",
     "ksp_rtol": args.ktol,
     "ksp_atol": 1e-50,

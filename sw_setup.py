@@ -455,23 +455,25 @@ if args.vfs:
         "mat_type": "matfree",
         "snes_type": "ksponly",
         "ksp_type": "gmres",
+        "ksp_error_if_not_converged": None,
         "ksp_rtol": 1.0e-10,
         "ksp_monitor": None,
         "ksp_error_if_not_converged": None,
         "pc_type": "python",
         'pc_python_type': 'firedrake.HybridizationPC',
-        'hybridization': {'ksp_type': 'preonly',
-                          "ksp_error_if_not_converged": None,
-                          'pc_type': 'lu',
-                          'pc_factor_mat_solver_type':'mumps'                          }
+#        'hybridization': {'ksp_type': 'preonly',
+#                          "ksp_error_if_not_converged": None,
+#                          'pc_type': 'lu',
+#                          'pc_factor_mat_solver_type':'mumps'                          }
+#    }
+                          "pc_factor_mat_solver_type":'mumps', 
+                          },
     }
-    v_basis = fd.VectorSpaceBasis(constant=True)
-    nullspace = fd.MixedVectorSpaceBasis(WG, [WG.sub(0), v_basis])
-    G_setup_prob = fd.LinearVariationalProblem(a, L, UG0)
-    G_setup_solver = fd.LinearVariationalSolver(G_setup_prob,
-                                                nullspace=nullspace,
-                                                solver_parameters=
-                                                hybridparams)
+    G_setup_prob = fd.NonlinearVariationalProblem(
+        eqn, UG, nullspace=nullspace)
+    G_setup_solver = fd.NonlinearVariationalSolver(G_setup_prob,
+                                                   solver_parameters=lparams,
+                                                   nullspace=nullspace)
     G_setup_solver.solve()
     vg, pg = fd.split(UG0)
     G0.project(vg)
