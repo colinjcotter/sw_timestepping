@@ -38,7 +38,6 @@ class IRK_aL_PC(IRKAuxiliaryOperatorPC):
         )
         return eqn, None
 
-
 alparameters = {
     "snes_monitor": None,
     "snes_converged_reason": None,
@@ -83,6 +82,39 @@ alparameters["aux_pc_fieldsplit_0_fields"]=\
 alparameters["aux_pc_fieldsplit_1_fields"]=\
     ",".join(str(2*n+1) for n in range(args.rk_stages))
 
+class IRK_wave_PC(IRKAuxiliaryOperatorPC):
+    def getNewForm(self, pc, U0, test):
+        u0, h0 = fd.split(U0)
+        w, phi = fd.split(test)
+
+        eqn = (
+            fd.inner(v, Dt(u0))*dx
+            + u_op(v, u0, h0, system="linear")
+            + phi*Dt(h0)*dx
+            + h_op(phi, u0, h0, system="linear")
+        )
+        return eqn, None
+
+wa_parameters = {
+    "mat_type" : "aij",
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_type": "anderson",
+    "snes_anderson_m": 5,
+    "snes_restart_type": "none",
+    "snes_anderson_monitor": None,
+    "npc_snes_type": "ksponly",
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "npc_ksp_type": "preonly",
+    "ncp_pc_type": "python",
+    "npc_pc_python_type": f"{__name__}.IRK_wave_PC",
+    "npc_pc_aux" : {
+        "pc_type": "lu",
+        "pc_factor_mat_solver_type": "mumps"
+    }
+}
 
 class aLPC(fd.AuxiliaryOperatorPC):
         def form(self, pc, trial, test):
@@ -257,8 +289,9 @@ elif args.pcscheme == "waverana":
 elif args.pcscheme == "rana":
     parameters = ranaparameters
 elif args.pcscheme == "al":
-    print(Atilde_diag)
     parameters = alparameters
+elif args.pcscheme == "waveanderson":
+    parameters = wa_parameters
 else:
     raise NotImplementedError
 
