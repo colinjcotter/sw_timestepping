@@ -29,8 +29,8 @@ parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance
 parser.add_argument('--ktol', type=float, default=1.0e-8, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
-parse.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
-parse.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
+parser.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
+parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
 
 args = parser.parse_known_args()
 args = args[0]

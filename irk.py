@@ -1,5 +1,5 @@
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre, \
-    IRKAuxiliaryOperatorPC
+from irksome import Dt, MeshConstant, RadauIIA, TimeStepper
+from irksome import GaussLegendre, IRKAuxiliaryOperatorPC, Alexander
 from irksome.pc import RanaBase
 from sw_setup import *
 import numpy as np
@@ -10,8 +10,11 @@ dT = MC.Constant(dt)
 tc = MC.Constant(0.)
 gamma = MC.Constant(args.gamma)
 
+stage_type = "deriv"
+
 if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
+    stage_type = "derivative"
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 elif args.rk_type == 'WSODIRK':
@@ -20,6 +23,9 @@ elif args.rk_type == 'WSODIRK':
                                     args.weak_stage_order)
 elif args.rk_type == 'Alexander':
     butcher_tableau = Alexander()
+    stage_type = "dirk"
+else:
+    raise NotImplementedError
 
 class PQPC(RanaBase):
     def getAtilde(self, A):
@@ -73,7 +79,7 @@ parameters = {
     "snes_lag_jacobian": 40,
     "snes_lag_jacobian_persists": None,
     "snes_ksp_ew": None,
-    "ksp_monitor": None,
+    #"ksp_monitor": None,
     "ksp_converged_rate": None,
     # "ksp_view": None,
     "ksp_type": "gcr",
@@ -135,6 +141,7 @@ al_params = {
 }
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
+                      stage_type=stage_type,
                       solver_parameters=parameters)
 
 tdump = 0.
@@ -158,7 +165,8 @@ for step in range(nsteps):
     tdump += dt
     t += dt
     stepper.advance()
-    stepper.stages.assign(0.)
+    if stage_type == "deriv":
+        stepper.stages.assign(0.)
 
     if args.one_step:
         step = nsteps-1
