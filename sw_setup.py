@@ -22,13 +22,15 @@ parser.add_argument('--vector_invariant', action='store_true', help='Use the vec
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--hybrid', action='store_true', help='Use broken formulation with trace multipliers.')
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
-parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
+parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA, GaussLegendre, Alexander or WSODIRK')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 parser.add_argument('--ktol', type=float, default=1.0e-8, help='Solver tolerance for the linear solver')
 parser.add_argument('--gamma', type=float, default=0.0, help='Augmented Lagrangian parameter.')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
+parse.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
+parse.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
 
 args = parser.parse_known_args()
 args = args[0]

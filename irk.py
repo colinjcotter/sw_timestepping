@@ -14,6 +14,12 @@ if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
+elif args.rk_type == 'WSODIRK':
+    butcher_tableau = GaussLegendre(args.rk_stages,
+                                    args.WSODIRK_order,
+                                    args.weak_stage_order)
+elif args.rk_type == 'Alexander':
+    butcher_tableau = Alexander()
 
 class PQPC(RanaBase):
     def getAtilde(self, A):
