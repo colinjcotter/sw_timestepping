@@ -1,4 +1,5 @@
 import firedrake as fd
+from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre
 #get command arguments
 from petsc4py import PETSc
 from firedrake.__future__ import interpolate
@@ -19,7 +20,6 @@ parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form.')
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
-parser.add_argument('--hybrid', action='store_true', help='Use broken formulation with trace multipliers.')
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
 parser.add_argument('--rk_type', type=str, default='RadauIIA', help='RadauIIA or GaussLegendre')
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
@@ -67,29 +67,14 @@ if args.bdfm:
 else:
     family = "BDM"
 
-if args.hybrid:
-    V1_ele = fd.FiniteElement(family, fd.triangle, degree+1)
-    V1 = fd.FunctionSpace(mesh, fd.BrokenElement(V1_ele))
-else:
-    V1 = fd.FunctionSpace(mesh, family, degree+1)
+V1 = fd.FunctionSpace(mesh, family, degree+1)
 V1dg = fd.VectorFunctionSpace(mesh, "DG", degree+1, dim=3)
 V2 = fd.FunctionSpace(mesh, "DG", degree)
 V0 = fd.FunctionSpace(mesh, "CG", degree+2)
-if args.hybrid:
-    if args.bdfm:
-        T = fd.FunctionSpace(mesh, "HDivT", degree)
-    else:
-        T = fd.FunctionSpace(mesh, "HDivT", degree+1)
-    W = fd.MixedFunctionSpace((V1, V2, T))
-else:
-    W = fd.MixedFunctionSpace((V1, V2))
+W = fd.MixedFunctionSpace((V1, V2))
 
-if args.hybrid:
-    u, eta, ll = fd.TrialFunctions(W)
-    v, phi, mu = fd.TestFunctions(W)
-else:
-    u, eta = fd.TrialFunctions(W)
-    v, phi = fd.TestFunctions(W)
+u, eta = fd.TrialFunctions(W)
+v, phi = fd.TestFunctions(W)
 
 Omega = fd.Constant(7.292e-5)  # rotation rate
 f = 2*Omega*cz/fd.Constant(R0)  # Coriolis parameter
@@ -104,10 +89,7 @@ One = fd.Function(V2).assign(1.0)
 dx = fd.dx
 
 Un = fd.Function(W)
-if args.hybrid:
-    u0, h0, ll0 = fd.split(Un)
-else:
-    u0, h0 = fd.split(Un)
+u0, h0 = fd.split(Un)
 n = fd.FacetNormal(mesh)
 
 def both(u):
@@ -217,10 +199,7 @@ x = fd.SpatialCoordinate(mesh)
 un = fd.Function(V1, name="Velocity")
 etan = fd.Function(V2, name="Elevation")
 
-if args.hybrid:
-    u0, h0, ll0 = Un.subfunctions
-else:
-    u0, h0 = Un.subfunctions
+u0, h0 = Un.subfunctions
 
 testcase = args.williamson
 

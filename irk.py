@@ -1,6 +1,4 @@
 from sw_setup import *
-from irksome import Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre
-from irksome.pc import RanaBase
 import numpy as np
 
 MC = MeshConstant(mesh)
@@ -12,10 +10,6 @@ if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
-
-class PQPC(RanaBase):
-    def getAtilde(self, A):
-        return np.diag(butcher_tableau.c)
 
 u0, h0 = fd.split(Un)
 eqn = (
