@@ -8,6 +8,7 @@ import mg
 import argparse
 
 parser = argparse.ArgumentParser(description='Williamson 5 testcase.')
+parser.add_argument('--base_level', type=int, default=1, help='Base refinement level of icosahedral grid for MG solve. Default 1.')
 parser.add_argument('--ref_level', type=int, default=5, help='Refinement level of icosahedral grid. Default 5.')
 parser.add_argument('--tmax', type=float, default=1296000, help='Final time in seconds. Default 1296000 (15 days).')
 parser.add_argument('--dumpt', type=float, default=86400, help='Dump time in seconds. Default 86400 (24 hours).')
@@ -26,6 +27,7 @@ parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner i
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
+parser.add_argument('--pcscheme',type=str, default='mg', help='[mg] use multigrid with star patch smoothers, [patch] use a star patch preconditioner on single level')
 
 args = parser.parse_known_args()
 args = args[0]
@@ -41,21 +43,55 @@ if args.show_args:
 # some domain, parameters and FS setup
 R0 = 6371220.
 H = fd.Constant(5960.)
+base_level = args.base_level
+nrefs = args.ref_level - base_level
 name = args.filename
 deg = args.coords_degree
 distribution_parameters = {"partition": True, "overlap_type": (fd.DistributedMeshOverlapType.VERTEX, 2)}
 
-mesh = fd.IcosahedralSphereMesh(radius=R0,
-                                refinement_level=args.ref_level,
-                                degree=1,
-                                distribution_parameters = distribution_parameters)
+if args.pcscheme == 'mg':
+    def high_order_mesh_hierarchy(mh, degree, R0):
+        meshes = []
+        for m in mh:
+            X = fd.VectorFunctionSpace(m, "Lagrange", degree)
+            new_coords = fd.Function(X).interpolate(m.coordinates)
+            x, y, z = new_coords
+            r = (x**2 + y**2 + z**2)**0.5
+            new_coords = fd.Function(X).interpolate(R0*new_coords/r)
+            new_mesh = fd.Mesh(new_coords, name="errormesh")
+            meshes.append(new_mesh)
+
+        return fd.HierarchyBase(meshes, mh.coarse_to_fine_cells,
+                                mh.fine_to_coarse_cells,
+                                mh.refinements_per_level, mh.nested)
+
+    basemesh = fd.IcosahedralSphereMesh(radius=R0,
+                                        refinement_level=base_level,
+                                        degree=1,
+                                        distribution_parameters = distribution_parameters)
+    del basemesh._radius
+    mh = fd.MeshHierarchy(basemesh, nrefs)
+    mh = high_order_mesh_hierarchy(mh, deg, R0)
+    for mesh in mh:
+        xf = mesh.coordinates
+        mesh.transfer_coordinates = fd.Function(xf)
+        x = fd.SpatialCoordinate(mesh)
+        r = (x[0]**2 + x[1]**2 + x[2]**2)**0.5
+        xf.interpolate(R0*xf/r)
+        mesh.init_cell_orientations(x)
+    mesh = mh[-1]
+else:
+    mesh = fd.IcosahedralSphereMesh(radius=R0,
+                                    refinement_level=args.ref_level,
+                                    degree=deg,
+                                    distribution_parameters = distribution_parameters)
+    x = fd.SpatialCoordinate(mesh)
+    mesh.init_cell_orientations(x)
+
 R0 = fd.Constant(R0)
-x = fd.SpatialCoordinate(mesh)
-mesh.init_cell_orientations(x)
-cx, cy, cz = x
+cx, cy, cz = fd.SpatialCoordinate(mesh)
 
 outward_normals = fd.CellNormal(mesh)
-
 
 def perp(u):
     return fd.cross(outward_normals, u)

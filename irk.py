@@ -47,25 +47,27 @@ starasm = {
     "assembled_pc_star_backend": "tinyasm",
 }
 
+parameters = {
+    "mat_type": "matfree",
+    "snes_monitor": None,
+    "snes_converged_reason": None,
+    "snes_ksp_ew": None,
+    "snes_atol": 1e-50,
+    "snes_stol": 1e-50,
+    "snes_rtol": args.ntol,
+    "snes_lag_jacobian": 5,
+    #"snes_lag_jacobian_persists": None,
+    #"ksp_lag_preconditioner": 6,
+    #"ksp_monitor": None,
+    "ksp_converged_rate": None,
+    #"ksp_view": None,
+    #"snes_view": None,
+    "ksp_type": "gmres",
+    "ksp_max_it": 60,
+}
 
-if args.sdc:
-    parameters = {"mat_type": "matfree",
-                  "ksp_type": "gmres",
-                  "ksp_monitor": None,
-                  "ksp_atol": 1.0e-50,
-                  "ksp_rtol": 1.0e-8,
-                  "pc_type": "python",
-                  "pc_python_type": "__main__.PQPC",
-                  "aux" : 
-                  {"pc_type": "fieldsplit",   # block preconditioner
-                   "pc_fieldsplit_type": "additive"  # block diagonal
-                   },
-                  "snes_monitor": None,
-                  "snes_lag_preconditioner": 5,
-                  }
-
-    per_field={
-        "ksp_type": "preonly",
+if args.pcscheme == 'mg':
+    mgparameters = {
         "pc_type": "mg",
         "pc_mg_cycle_type": "v",
         "pc_mg_type": "multiplicative",
@@ -90,72 +92,16 @@ if args.sdc:
         "mg_coarse_assembled_pc_type": "lu",
         "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
     }
-    
-    for s in range(args.rk_stages):
-        parameters["aux_pc_fieldsplit_"+str(s)+"_fields"] = \
-            str(2*s)+","+str(2*s+1)
-        parameters["aux_fieldsplit_%s" % (s,)] = per_field
-else:
-    parameters = {
-        "mat_type": "matfree",
-        "snes_monitor": None,
-        "snes_converged_reason": None,
-        "snes_ksp_ew": None,
-        "snes_atol": 1e-50,
-        "snes_stol": 1e-50,
-        "snes_rtol": args.ntol,
-        # "snes_max_it": 1,
-        # "snes_convergence_test": "skip",
-        "snes_lag_jacobian": 5,
-        #"snes_lag_jacobian_persists": None,
-        #"ksp_lag_preconditioner": 6,
-        #"ksp_monitor": None,
-        "ksp_converged_rate": None,
-        #"ksp_view": None,
-        #"snes_view": None,
-        "ksp_type": "gmres",
-        #"ksp_rtol": 1.0e-6,
-        #"ksp_atol": 1e-50,
-        "ksp_max_it": 60,
+    parameters = parameters | mgparameters
+elif pcscheme == 'patch':
+    pparameters = {
         "pc_type": "ksp",
         "ksp_ksp_type": "richardson",
         "ksp_ksp_richardson_scale": 0.5,
         "ksp_ksp_max_it": 2,
         "ksp" : starasm,
     }
-
-fields0 = ""
-fields1 = ""
-for i in range(args.rk_stages):
-    fields0 += str(2*i+1)
-    fields1 += str(2*i)
-    if i < args.rk_stages-1:
-        fields0 += ", "
-        fields1 += ", "
-
-schur_parameters = {
-    "snes_monitor": None,
-    "snes_converged_reason": None,
-    "snes_atol": 1e-50,
-    "snes_stol": 1e-50,
-    "snes_rtol": args.ntol,
-    "ksp_view": None,
-    #"snes_lag_jacobian": -2,
-    #"snes_lag_jacobian_persists": None,
-    "ksp_monitor": None,
-    "ksp_converged_rate": None,
-    "ksp_type": "gmres",
-    "ksp_rtol": 1e-6,
-    "ksp_atol": 1e-50,
-    "ksp_max_it": 60,
-    "pc_type": "fieldsplit",
-    "pc_fieldsplit_type": "multiplicative",
-    "fieldsplit_0_fields": fields0,
-    "fieldsplit_1_fields": fields1,
-    "fieldsplit_0" : patch,
-    "fieldsplit_1" : patch
-}
-
+    parameters = parameters | pparameters
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       solver_parameters=parameters)
