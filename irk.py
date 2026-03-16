@@ -6,11 +6,23 @@ MC = MeshConstant(mesh)
 dT = MC.Constant(dt)
 tc = MC.Constant(0.)
 
+stage_type = args.stage_type
+
 if args.rk_type == 'RadauIIA':
     butcher_tableau = RadauIIA(args.rk_stages)
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
-
+elif args.rk_type == 'WSODIRK':
+    butcher_tableau = GaussLegendre(args.rk_stages,
+                                    args.WSODIRK_order,
+                                    args.weak_stage_order)
+    stage_type = "dirk"
+elif args.rk_type == 'Alexander':
+    butcher_tableau = Alexander()
+    stage_type = "dirk"
+else:
+    raise NotImplementedError
+    
 u0, h0 = fd.split(Un)
 eqn = (
     fd.inner(v, Dt(u0))*dx
