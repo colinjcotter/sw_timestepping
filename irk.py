@@ -114,6 +114,7 @@ elif args.pcscheme == 'patch':
     parameters = parameters | pparameters
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
+                      stage_type = stage_type,
                       solver_parameters=parameters)
 stepper.solver.set_transfer_manager(transfermanager)
 
