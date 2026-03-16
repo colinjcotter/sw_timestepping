@@ -1,11 +1,14 @@
-levels = ["5"]
+levels = ["6"]
 dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
 pcs = ["mg"]
-stages = [
+stages = [1,2] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
 tmax = 86400
 ntol = 1.0e-6
 williamson=6
 ncpus = [16]
+
+#irks = [("WSODIRK", 4, 2, 2)]
+irks = ["GaussLegendre"]
 
 warmup = False
 
@@ -18,15 +21,24 @@ for dt in dts:
         for stage in stages:
             for ncpu in ncpus:
                 for pc in pcs:
-                    options = {"tmax": tmax,
-                               "ntol": ntol,
-                               "williamson": 6,
-                               "dt": dt,
-                               "ref_level": level,
-                               "rk_stages": stage,
-                               "pcscheme": pc,
-                               "rk_type": irk,
-                               }
+                    for irk in irks:
+                        if type(irk) == tuple:
+                            irk_name = irk[0]
+                        else:
+                            irk_name = irk
+                        options = {"tmax": tmax,
+                                   "ntol": ntol,
+                                   "williamson": 6,
+                                   "dt": dt,
+                                   "ref_level": level,
+                                   "rk_stages": stage,
+                                   "pcscheme": pc,
+                                   "rk_type": irk_name,
+                                   }
+                    if irk_name == "WSODIRK":
+                        options["rk_stages"] = irk[1]
+                        options["WSODIRK_order"] = irk[2]
+                        options["weak_stage_order"] = irk[3]
                     args = []
                     for key, value in options.items():
                         args += ["--"+str(key), str(value)]
