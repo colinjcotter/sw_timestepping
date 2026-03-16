@@ -55,25 +55,20 @@ parameters = {
     "snes_atol": 1e-50,
     "snes_stol": 1e-50,
     "snes_rtol": args.ntol,
-    "snes_lag_jacobian": 5,
-    #"snes_lag_jacobian_persists": None,
-    #"ksp_lag_preconditioner": 6,
-    #"ksp_monitor": None,
+    "snes_lag_jacobian": 100,
+    "snes_lag_jacobian_persists": None,
     "ksp_converged_rate": None,
-    #"ksp_view": None,
-    #"snes_view": None,
-    "ksp_type": "gmres",
     "ksp_max_it": 60,
 }
 
 if args.pcscheme == 'mg':
     mgparameters = {
+        "ksp_type": "fgmres",
         "pc_type": "mg",
         "pc_mg_cycle_type": "v",
         "pc_mg_type": "multiplicative",
         "mg_levels_ksp_type": "gmres",
         "mg_levels_ksp_max_it": 3,
-        #"mg_levels_ksp_convergence_test": "skip",
         "mg_levels_pc_type": "python",
         "mg_levels_pc_python_type": "firedrake.PatchPC",
         "mg_levels_patch_pc_patch_save_operators": True,
@@ -87,14 +82,17 @@ if args.pcscheme == 'mg':
         "mg_levels_patch_sub_ksp_type": "preonly",
         "mg_levels_patch_sub_pc_type": "lu",
         "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
+        "mg_levels_pc_factor_mat_ordering_type": "rcm",
+        "mg_levels_pc_factor_reuse_ordering" : None,
         "mg_coarse_pc_type": "python",
         "mg_coarse_pc_python_type": "firedrake.AssembledPC",
         "mg_coarse_assembled_pc_type": "lu",
         "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
     }
     parameters = parameters | mgparameters
-elif pcscheme == 'patch':
+elif args.pcscheme == 'patch':
     pparameters = {
+        "ksp_type": "gmres",
         "pc_type": "ksp",
         "ksp_ksp_type": "richardson",
         "ksp_ksp_richardson_scale": 0.5,
@@ -130,7 +128,7 @@ for step in range(nsteps):
     stepper.advance()
 
     if args.one_step:
-        step = nsteps-1
+        break
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
@@ -140,7 +138,8 @@ for step in range(nsteps):
         tdump -= dumpt
 
 PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", args.tmax)
-assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
+if not args.one_step:
+    assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
 
 etan.assign(h0 - H + b)
 un.assign(u0)
