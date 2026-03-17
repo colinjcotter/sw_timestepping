@@ -132,6 +132,7 @@ file_sw.write(un, etan, qn)
 nsteps = tcheck(tmax, dt)
 step = 0
 t = 0.
+itcount = 0
 
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
@@ -139,7 +140,8 @@ for step in range(nsteps):
     tdump += dt
     t += dt
     stepper.advance()
-
+    itcount += stepper.solver.snes.getLinearSolveIterations()
+    
     if args.one_step:
         break
 
@@ -150,9 +152,11 @@ for step in range(nsteps):
         file_sw.write(un, etan, qn)
         tdump -= dumpt
 
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", args.tmax)
 if not args.one_step:
     assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
+
+PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/(step+1),
+                "dt", dt, "ref_level", args.ref_level, "tmax", tmax)
 
 etan.assign(h0 - H + b)
 un.assign(u0)

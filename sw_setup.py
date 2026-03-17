@@ -3,7 +3,6 @@ from irksome import (Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre,
                      Alexander)
 #get command arguments
 from petsc4py import PETSc
-from firedrake.__future__ import interpolate
 
 import mg
 import argparse

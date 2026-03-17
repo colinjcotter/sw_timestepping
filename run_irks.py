@@ -60,7 +60,7 @@ for dt in dts:
                     args += ["&>", fname+"/out"]
                     print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
                     print("grep Main "+fname+"/log &> "+fname+"/stats")
-                    print("cat "+fname+"/chk.h5.out >> "+fname+"/stats")
+                    print("grep Iterations "+fname+"/out &> "+fname+"/stats")
 
                     rows.append(options)
 
