@@ -21,7 +21,7 @@ for directory in df["directory"]:
                         vals.append(float(s))
                     except:
                         continue
-                its.append(vals[0])
+                its.append(vals[1])
     df["Times"] = pd.Series(times)
     df["Iterations per timestep"] = pd.Series(its)
 
