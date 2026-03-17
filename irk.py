@@ -68,7 +68,7 @@ parameters = {
     "snes_stol": 1e-50,
     "snes_rtol": args.ntol,
     "snes_lag_jacobian": 100,
-    "snes_lag_jacobian_persists": None,
+    #"snes_lag_jacobian_persists": None,
     "ksp_converged_rate": None,
     "ksp_max_it": 60,
 }

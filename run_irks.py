@@ -1,5 +1,6 @@
 levels = ["6"]
 dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
+dts = [600]
 pcs = ["mg"]
 stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
 tmax = 86400
@@ -10,7 +11,7 @@ ncpus = [16]
 #irks = [("WSODIRK", 4, 2, 2)]
 irks = ["GaussLegendre"]
 
-warmup = False
+warmup = True
 
 import subprocess, os
 
