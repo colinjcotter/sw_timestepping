@@ -60,8 +60,8 @@ for dt in dts:
                     args += ["-log_view", ":"+fname+"/log"]
                     args += ["&>", fname+"/out"]
                     print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
-                    print("grep Main "+fname+"/log &> "+fname+"/stats")
-                    print("grep Iterations "+fname+"/out &> "+fname+"/stats")
+                    print("grep 'Main Stage:' "+fname+"/log > "+fname+"/stats")
+                    print("grep Iterations "+fname+"/out >> "+fname+"/stats")
 
                     rows.append(options)
 
