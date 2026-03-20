@@ -1,6 +1,6 @@
 import firedrake as fd
 from irksome import (Dt, MeshConstant, RadauIIA, TimeStepper, GaussLegendre,
-                     Alexander)
+                     Alexander, WSODIRK)
 #get command arguments
 from petsc4py import PETSc
 

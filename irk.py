@@ -13,9 +13,9 @@ if args.rk_type == 'RadauIIA':
 elif args.rk_type == 'GaussLegendre':
     butcher_tableau = GaussLegendre(args.rk_stages)
 elif args.rk_type == 'WSODIRK':
-    butcher_tableau = GaussLegendre(args.rk_stages,
-                                    args.WSODIRK_order,
-                                    args.weak_stage_order)
+    butcher_tableau = WSODIRK(args.rk_stages,
+                              args.WSODIRK_order,
+                              args.weak_stage_order)
     stage_type = "dirk"
 elif args.rk_type == 'Alexander':
     butcher_tableau = Alexander()
