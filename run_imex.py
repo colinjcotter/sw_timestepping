@@ -1,17 +1,10 @@
 levels = ["6"]
 dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
-pcs = ["mg"]
-stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
+
 day = 60*60*24
 tmax = day*1
-ntol = 1.0e-6
 williamson=6
 ncpus = [16]
-
-# irks = [("WSODIRK", 4, 3, 2),
-#         ("WSODIRK", 4, 3, 3),
-#         "Alexander"]
-irks = ["GaussLegendre"]
 
 warmup = False
 
@@ -30,23 +23,15 @@ for dt in dts:
                         else:
                             irk_name = irk
                         options = {"tmax": tmax,
-                                   "ntol": ntol,
                                    "williamson": 6,
                                    "dt": dt,
                                    "coords_degree": 2,
                                    "ref_level": level,
-                                   "rk_stages": stage,
-                                   "pcscheme": pc,
-                                   "rk_type": irk_name,
                                    }
-                        if irk_name == "WSODIRK":
-                            options["rk_stages"] = irk[1]
-                            options["WSODIRK_order"] = irk[2]
-                            options["weak_stage_order"] = irk[3]
                         args = []
                         for key, value in options.items():
                             args += ["--"+str(key), str(value)]
-                        fname = "irk_data_"+hex(abs(hash(str(options))))
+                        fname = "imex_data_"+hex(abs(hash(str(options))))
                         try:
                             os.remove(fname)
                         except:
@@ -62,7 +47,7 @@ for dt in dts:
                         args += ["--filename", fname+"/data"]
                         args += ["-log_view", ":"+fname+"/log"]
                         args += ["&>", fname+"/out"]
-                        print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
+                        print("mpiexec -n "+str(ncpu)+" python imex.py " + " ".join(args))
                         print("grep 'Main Stage:' "+fname+"/log > "+fname+"/stats")
                         print("grep Iterations "+fname+"/out >> "+fname+"/stats")
 
@@ -70,4 +55,4 @@ for dt in dts:
 
 import pandas as pd
 df = pd.DataFrame(rows)
-df.to_csv("irks.csv")
+df.to_csv("imex.csv")
