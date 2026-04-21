@@ -1,16 +1,18 @@
 levels = ["6"]
 dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
 pcs = ["mg"]
-stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
+#stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
+stages = [1]
 day = 60*60*24
 tmax = day*1
 ntol = 1.0e-6
 williamson=6
 ncpus = [16]
+vector_invariant = False
 
-# irks = [("WSODIRK", 4, 3, 2),
-#         ("WSODIRK", 4, 3, 3),
-#         "Alexander"]
+#irks = [("WSODIRK", 4, 3, 2),
+#        ("WSODIRK", 4, 3, 3),
+#        "Alexander"]
 irks = ["GaussLegendre"]
 
 warmup = False
@@ -33,12 +35,14 @@ for dt in dts:
                                    "ntol": ntol,
                                    "williamson": 6,
                                    "dt": dt,
-                                   "coords_degree": 2,
+                                   "coords_degree": 1,
                                    "ref_level": level,
                                    "rk_stages": stage,
                                    "pcscheme": pc,
                                    "rk_type": irk_name,
                                    }
+                        if vector_invariant:
+                            options["vector_invariant"] = ""
                         if irk_name == "WSODIRK":
                             options["rk_stages"] = irk[1]
                             options["WSODIRK_order"] = irk[2]
@@ -65,7 +69,10 @@ for dt in dts:
                         print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
                         print("grep 'Main Stage:' "+fname+"/log > "+fname+"/stats")
                         print("grep Iterations "+fname+"/out >> "+fname+"/stats")
-
+                        if vector_invariant:
+                            options["vector_invariant"] = "Y"
+                        else:
+                            options["vector_invariant"] = "N"
                         rows.append(options)
 
 import pandas as pd

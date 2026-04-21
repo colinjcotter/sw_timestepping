@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description='Williamson 5 testcase.')
 parser.add_argument('--base_level', type=int, default=1, help='Base refinement level of icosahedral grid for MG solve. Default 1.')
 parser.add_argument('--ref_level', type=int, default=5, help='Refinement level of icosahedral grid. Default 5.')
 parser.add_argument('--tmax', type=float, default=1296000, help='Final time in seconds. Default 1296000 (15 days).')
-parser.add_argument('--dumpt', type=float, default=86400, help='Dump time in seconds. Default 86400 (24 hours).')
+parser.add_argument('--dumpt', type=float, default=1e100, help='Dump time in seconds. Default 1e100.')
 parser.add_argument('--dt', type=float, default=3600, help='Timestep in seconds. Default 3600.')
 parser.add_argument('--coords_degree', type=int, default=1, help='Degree of polynomials for sphere mesh approximation.')
 parser.add_argument('--degree', type=int, default=1, help='Degree of finite element space (the DG space).')
@@ -72,7 +72,7 @@ if args.pcscheme == 'mg':
 
     basemesh = fd.IcosahedralSphereMesh(radius=R0,
                                         refinement_level=base_level,
-                                        degree=1,
+                                        degree=deg,
                                         distribution_parameters = distribution_parameters)
     del basemesh._radius
     mh = fd.MeshHierarchy(basemesh, nrefs)
@@ -89,6 +89,7 @@ else:
     mesh = fd.IcosahedralSphereMesh(radius=R0,
                                     refinement_level=args.ref_level,
                                     degree=deg,
+                                    name="errormesh",
                                     distribution_parameters = distribution_parameters)
     x = fd.SpatialCoordinate(mesh)
     mesh.init_cell_orientations(x)

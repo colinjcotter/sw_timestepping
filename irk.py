@@ -112,6 +112,8 @@ elif args.pcscheme == 'patch':
         "ksp" : starasm,
     }
     parameters = parameters | pparameters
+else:
+    raise NotImplementedError
 
 stepper = TimeStepper(eqn, butcher_tableau, tc, dT, Un,
                       stage_type = stage_type,
