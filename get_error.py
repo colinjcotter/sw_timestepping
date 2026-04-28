@@ -15,7 +15,7 @@ def get_error(error_chkpoint, chkpoint):
         ui = afile.load_function(meshi, "Velocity")
     
     etai_r = Function(etar.function_space()).interpolate(etar)
-    ui_r = Function(ur.function_space()).interpolate(etar)
+    ui_r = Function(ur.function_space()).interpolate(ur)
 
     eta_error = norm(etai_r-etar)/norm(etar)
     u_error = norm(ui_r-ur)/norm(ur)

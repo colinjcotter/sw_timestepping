@@ -27,7 +27,7 @@ for directory in df["directory"]:
     df["Iterations per timestep"] = pd.Series(its)
     print(directory)
     eta_error, u_error = get_error(directory+"/chk.h5",
-                                   "rk_w6_GaussLegendre1_L6_dt_1_tmax_86400.h5")
+                                   "imex_ref/chk.h5")
     df["Elevation error"] = eta_error
     df["Velocity error"] = u_error
 df.to_csv('irks_w_stats.csv')
