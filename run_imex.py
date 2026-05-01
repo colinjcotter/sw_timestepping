@@ -1,12 +1,11 @@
 levels = ["6"]
-#dts = [100, 75, 37.5, 18.75]
-dts = [1]
+dts = [100, 75, 37.5, 18.75]
 
 day = 60*60*24
 tmax = day*1
 williamson=6
 ncpus = [16]
-vector_invariant = False
+vector_invariant = True
 
 warmup = False
 

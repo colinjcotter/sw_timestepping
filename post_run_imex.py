@@ -1,7 +1,10 @@
 import pandas as pd
+from get_error import get_error
 
 df = pd.read_csv("imex.csv")
 times = []
+eta_errors = []
+u_errors = []
 for directory in df["directory"]:
     with open(directory+"/stats") as f:
         for n, line in enumerate(f):
@@ -13,6 +16,13 @@ for directory in df["directory"]:
                     except:
                         continue
                 times.append(vals[0])
-    df["Times"] = pd.Series(times)
+        eta_error, u_error = get_error(directory+"/chk.h5",
+                                       "imex_VI_ref/chk.h5")
+        eta_errors.append(eta_error)
+        u_errors.append(u_error)
+
+df["Times"] = pd.Series(times)
+df["Elevation error"] = eta_errors
+df["Velocity error"] = u_errors
 
 df.to_csv('imex_w_stats.csv')
