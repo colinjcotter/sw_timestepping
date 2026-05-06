@@ -2,7 +2,7 @@ import pandas as pd
 from get_error import get_error
 
 df = pd.read_csv("irks.csv")
-ref = "imex_data_0x43652b16413a9c67"
+ref = "irk_VI_ref"
 its = []
 times = []
 eta_errors = []

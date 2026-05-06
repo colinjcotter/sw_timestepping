@@ -30,6 +30,7 @@ parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage 
 parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
+parser.add_argument('--kspatol', type=float, default=2.0e2, help='Absolute ksp tolerance for IRKs')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 parser.add_argument('--pcscheme',type=str, default='mg', help='[mg] use multigrid with star patch smoothers, [patch] use a star patch preconditioner on single level')
 

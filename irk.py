@@ -1,10 +1,8 @@
 from sw_setup import *
 import numpy as np
 
-MC = MeshConstant(mesh)
-
-dT = MC.Constant(dt)
-tc = MC.Constant(0.)
+dT = fd.Constant(dt)
+tc = fd.Constant(0.)
 
 stage_type = args.stage_type
 
@@ -55,7 +53,7 @@ starasm = {
     "assembled_pc_star_sub_sub_pc_type": "lu",
     "assembled_pc_star_sub_sub_ksp_type": "preonly",
     "assembled_pc_star_construct_dim": 0,
-    #"assembled_pc_star_sub_sub_pc_factor_mat_ordering_type": "rcm"
+    "assembled_pc_star_sub_sub_pc_factor_mat_ordering_type": "rcm",
     "assembled_pc_star_backend": "tinyasm",
 }
 
@@ -69,13 +67,16 @@ parameters = {
     "snes_rtol": args.ntol,
     "snes_lag_jacobian": 100,
     #"snes_lag_jacobian_persists": None,
+    "ksp_atol": args.kspatol,
     "ksp_converged_rate": None,
     "ksp_max_it": 60,
+    #"ksp_view": None
 }
 
 if args.pcscheme == 'mg':
     mgparameters = {
         "ksp_type": "fgmres",
+        "ksp_monitor": None,
         "pc_type": "mg",
         "pc_mg_cycle_type": "v",
         "pc_mg_type": "multiplicative",
@@ -85,6 +86,7 @@ if args.pcscheme == 'mg':
         "mg_levels_pc_python_type": "firedrake.PatchPC",
         "mg_levels_patch_pc_patch_save_operators": True,
         "mg_levels_patch_pc_patch_partition_of_unity": True,
+        #"mg_levels_patch_pc_patch_sub_mat_type": "aij",
         "mg_levels_patch_pc_patch_sub_mat_type": "seqdense",
         "mg_levels_patch_pc_patch_construct_dim": 0,
         "mg_levels_patch_pc_patch_construct_type": "star",
@@ -94,8 +96,8 @@ if args.pcscheme == 'mg':
         "mg_levels_patch_sub_ksp_type": "preonly",
         "mg_levels_patch_sub_pc_type": "lu",
         "mg_levels_patch_sub_pc_factor_shift_type": "nonzero",
-        "mg_levels_pc_factor_mat_ordering_type": "rcm",
-        "mg_levels_pc_factor_reuse_ordering" : None,
+        "mg_levels_patch_sub_pc_factor_mat_ordering_type": "rcm",
+        "mg_levels_patch_sub_pc_factor_reuse_ordering" : None,
         "mg_coarse_pc_type": "python",
         "mg_coarse_pc_python_type": "firedrake.AssembledPC",
         "mg_coarse_assembled_pc_type": "lu",

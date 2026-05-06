@@ -1,12 +1,13 @@
 levels = ["6"]
-dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
-#dts = [3600]
+#dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
+dts = [3600]
 pcs = ["mg"]
 #stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
 stages = [1]
 day = 60*60*24
 tmax = day*1
 ntol = 1.0e-6
+kspatol = 2.0e2
 williamson=6
 ncpus = [16]
 vector_invariant = True
@@ -34,9 +35,9 @@ for dt in dts:
                             irk_name = irk
                         options = {"tmax": tmax,
                                    "ntol": ntol,
+                                   "kspatol": kspatol,
                                    "williamson": 6,
                                    "dt": dt,
-                                   "ntol": ntol,
                                    "coords_degree": 1,
                                    "ref_level": level,
                                    "rk_stages": stage,
