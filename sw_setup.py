@@ -188,7 +188,7 @@ def h_op(phi, u, h, system="full"):
     elif system == "nonlinear":
         return nonlinear
     elif system == "full":
-        return full
+        return nonlinear+linear
 
 # monolithic solver options
 
