@@ -1,107 +1,61 @@
 # Testing the imex stepper using advection-diffusion
 from imex_stepper import ARK3222
 import firedrake as fd
+from petsc4py import PETSc
 
 n = 100
-mesh = UnitPeriodicIntervalMesh(n)
-V = fd.FunctionSpace(
-
-Unp1 = fd.Function(W)
-u1, h1 = fd.split(Unp1)
-
-half = fd.Constant(0.5)
-quarter = fd.Constant(0.25)
-
-u0, h0 = fd.split(Un)
-
-energy_expr = 0.5*(fd.inner(u0, u0)*h0 + g*(h0**2 + h0*b))*fd.dx
+mesh = fd.PeriodicUnitIntervalMesh(n)
+V = fd.FunctionSpace(mesh, "CG", 2)
+Un = fd.Function(V)
+dx = fd.dx
 
 def nonlinear(V, U):
-    v, phi = fd.split(V)
-    u, h = fd.split(U)
-    eqn = u_op(v, u, h, system="nonlinear")
-    eqn += h_op(phi, u, h, system="nonlinear")
-    return eqn
+    return V*U.dx(0)*dx
     
 def linear(V, U):
-    v, phi = fd.split(V)
-    u, h = fd.split(U)
-    eqn = u_op(v, u, h, system="linear")
-    eqn += h_op(phi, u, h, system="linear")
-    return eqn
+    return V.dx(0)*U.dx(0)*dx
     
-lparams = {
-    "mat_type": "matfree",
-    "snes_lag_jacobian": -2,
-    "snes_lag_jacobian_persists": None,
-    "snes_type": "ksponly",
-    "ksp_type": "gmres",
-    "ksp_monitor": None,
-    "pc_type": "python",
-    'pc_python_type': 'firedrake.HybridizationPC',
-    'hybridization': {'ksp_type': 'preonly',
-                      'pc_type': 'lu',
-                      "pc_factor_mat_solver_type":'superlu_dist'
-                      }}
-    
-mass = {
-    "ksp_type": "gmres",
-    "pc_type": "bjacobi",
-    "sub_pc_type": "ilu"
-}
+lparams = {}
+massparams = {}
 
-massparams = {
-    "snes_lag_jacobian": -2,
-    "snes_lag_jacobian_persists": None,
-    "snes_monitor": None,
-    "ksp_type": "preonly",
-    "pc_type": "fieldsplit",
-    "fieldsplit_0": mass,
-    "fieldsplit_1": mass
-}
+dt = 0.001
+dT = fd.Constant(dt)
 
 stepper = ARK3222(linear, nonlinear, Un, dT, lparams, massparams)
 
-tdump = 0.
-t = 0.
-PETSc.Sys.Print('tmax', tmax, 'dt', dt)
+x, = fd.SpatialCoordinate(mesh)
+u0 = fd.sin(fd.pi*2*x)
+# analytic solution
+# U = Im(u(t)*exp(2*pi*i*x)), u(0) = 1
+# u_t = (-2*pi*i - 4*pi**2)*u
+# has solution u = exp((-2*pi*i - 4*pi**2)t)
+# U = Im(exp(-(2*pi*i + 4*pi**2)t + 2*pi*i*x))
+#   = exp(-4*pi**2*t)*Im(exp(-2*pi*i*(x-t)))
+#   = exp(-4*pi**2*t)*sin(2*pi*(x-t))
+tmax = 0.01
+exact = fd.exp(-4*fd.pi**2*tmax)*(fd.sin(2*fd.pi*(x-tmax)))
 
-u0, h0 = Un.subfunctions
+dts = [tmax*2**(-k) for k in range(5)]
+errors = []
 
-from firedrake.output import VTKFile
-file_sw = VTKFile(name+'.pvd')
-etan.assign(h0 - H + b)
-un.assign(u0)
-qsolver.solve()
-file_sw.write(un, etan, qn)
+for dt in dts:
+    t = 0.
+    dT.assign(dt)
+    Un.interpolate(u0)    
+    while t < tmax - 0.5*dt:
+        PETSc.Sys.Print(f"\nTime {t}, {t/tmax} of total\n")
+        t += dt
 
-itcount = 0
-energy0 = fd.assemble(energy_expr)
-step = 0
+        stepper.advance()
 
-while t < tmax - 0.5*dt:
-    PETSc.Sys.Print(f"\nTimestep {step} at time {t}, {t/tmax} of total\n")
-    step += 1
-    t += dt
-    tdump += dt
+    assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
+    error = float(fd.norm(Un - exact))
+    errors.append(error)
 
-    stepper.advance()
-
-    if args.one_step:
-        step = nsteps-1
-
-    energy = fd.assemble(energy_expr)
-    PETSc.Sys.Print("relative energy error", (energy-energy0)/energy0)
-
-    if tdump > dumpt - dt*0.5:
-        etan.assign(h0 - H + b)
-        un.assign(u0)
-        qsolver.solve()
-        file_sw.write(un, etan, qn)
-        tdump -= dumpt
-PETSc.Sys.Print("dt", dt, "ref_level", args.ref_level, "tmax", tmax)
-assert abs(t-tmax) < 1.0e-5, "t is not equal to tmax"
-
-etan.assign(h0 - H + b)
-un.assign(u0)
-checkpoint_output(un, etan)
+import numpy as np
+dts = np.array(dts)
+errors = np.array(errors)
+print(dts)
+print(errors)
+order = -np.log(errors[1:]/errors[0:-1])/np.log(2)
+print(order)
