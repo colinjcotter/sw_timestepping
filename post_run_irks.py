@@ -26,7 +26,8 @@ for directory in df["directory"]:
                     except:
                         continue
                 its.append(vals[1])
-        eta_error, u_error = get_error(directory+"/chk.h5",
+        file0 = directory+"/chk.h5"
+        eta_error, u_error = get_error(file0,
                                        ref+"/chk.h5")
         eta_errors.append(eta_error)
         u_errors.append(u_error)

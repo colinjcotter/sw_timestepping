@@ -155,8 +155,8 @@ def u_op(v, u, h, system="full"):
     else:
         nonlinear = -fd.inner(fd.div(fd.outer(v, u)), u)*fd.dx
         if args.centred:
-            unp = 0.5*fd.dot(u('+'), n('+'))
-            unm = 0.5*fd.dot(u('-'), n('-'))
+            unp = fd.dot(u('+'), n('+'))
+            unm = fd.dot(u('-'), n('-'))
         else:
             unp = \
                 0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
@@ -172,22 +172,23 @@ def u_op(v, u, h, system="full"):
     return linear + nonlinear
 
 def h_op(phi, u, h, system="full"):
-    if system == "linear":
-        return H*fd.div(u)*phi*dx
+    linear = H*fd.div(u)*phi*dx
     if args.centred:
-        unp = 0.5*fd.dot(u('+'), n('+'))
-        unm = 0.5*fd.dot(u('-'), n('-'))
+        unp = fd.dot(u('+'), n('+'))
+        unm = fd.dot(u('-'), n('-'))
     else:
         unp = 0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
         unm = 0.5*(fd.dot(u('-'), n('-')) + abs(fd.dot(u('-'), n('-'))))
-    if system == "nonlinear":
-        return (- fd.inner(fd.grad(phi), u)*(h-H)*dx
-                + fd.jump(phi)*(unp*(h('+')-H)
-                                - unm*(h('-')-H))*dS
-                )
-    return (- fd.inner(fd.grad(phi), u)*h*dx
-            + fd.jump(phi)*(unp*h('+') - unm*h('-'))*dS
-            )
+        nonlinear = (- fd.inner(fd.grad(phi), u)*(h-H)*dx
+                     + fd.jump(phi)*(unp*(h('+')-H)
+                                     - unm*(h('-')-H))*dS
+                     )
+    if system == "linear":
+        return linear
+    elif system == "nonlinear":
+        return nonlinear
+    elif system == "full":
+        return full
 
 # monolithic solver options
 

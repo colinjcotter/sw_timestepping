@@ -1,6 +1,6 @@
 levels = ["6"]
 dts = [100, 75, 37.5, 18.75]
-
+dts = [1]
 day = 60*60*24
 tmax = day*1
 williamson=6

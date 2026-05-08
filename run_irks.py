@@ -1,9 +1,9 @@
 levels = ["6"]
 #dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
-dts = [3600]
+dts = [2400, 1200, 600, 300]
 pcs = ["mg"]
 #stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
-stages = [1]
+stages = [2]
 day = 60*60*24
 tmax = day*1
 ntol = 1.0e-6

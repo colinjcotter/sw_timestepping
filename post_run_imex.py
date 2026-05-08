@@ -1,7 +1,7 @@
 import pandas as pd
 from get_error import get_error
 
-df = pd.read_csv("imex.csv")
+df = pd.read_csv("imex_convergent.csv")
 times = []
 eta_errors = []
 u_errors = []
@@ -16,8 +16,10 @@ for directory in df["directory"]:
                     except:
                         continue
                 times.append(vals[0])
-        eta_error, u_error = get_error(directory+"/chk.h5",
-                                       "imex_VI_ref/chk.h5")
+        file0 = directory+"/chk.h5"
+        ref = "irk_VI_ref"
+        eta_error, u_error = get_error(file0,
+                                       ref+"/chk.h5")
         eta_errors.append(eta_error)
         u_errors.append(u_error)
 
