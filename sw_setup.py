@@ -27,7 +27,6 @@ parser.add_argument('--rk_type', type=str, default='RadauIIA',
 parser.add_argument('--stage_type',type=str, default='deriv', help='Stage type for FIRKs. Selecting DIRKs as rk_type will change this to [dirk]')
 parser.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
 parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
-parser.add_argument('--sdc', action='store_true', help='Use SDC preconditioner in IRK.')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 parser.add_argument('--kspatol', type=float, default=2.0e2, help='Absolute ksp tolerance for IRKs')
@@ -179,10 +178,11 @@ def h_op(phi, u, h, system="full"):
     else:
         unp = 0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
         unm = 0.5*(fd.dot(u('-'), n('-')) + abs(fd.dot(u('-'), n('-'))))
-        nonlinear = (- fd.inner(fd.grad(phi), u)*(h-H)*dx
-                     + fd.jump(phi)*(unp*(h('+')-H)
-                                     - unm*(h('-')-H))*dS
+        nonlinear = (- fd.inner(fd.grad(phi), u)*h*dx
+                     + fd.jump(phi)*(unp*h('+')
+                                     - unm*h('-'))*dS
                      )
+        nonlinear -= linear
     if system == "linear":
         return linear
     elif system == "nonlinear":
@@ -265,8 +265,7 @@ if testcase == 5:
     bexpr = 2000.0*(1 - fd.sqrt(minarg)/rl)
     b.interpolate(bexpr)
     u0.assign(un)
-    h0.assign(etan + H - b)
-
+    h0.assign(etan + H - b)    
 elif testcase == 6:
     x, y, z = fd.SpatialCoordinate(mesh)
     lon = fd.atan2(y, x)
@@ -294,8 +293,12 @@ elif testcase == 6:
     C = (1 / 4) * K**2 * fd.cos(lat)**(2 * R) * ((R + 1)*fd.cos(lat)**2 - (R + 2))
     Dexpr = H0 + R0**2 * (A + B*fd.cos(lon*R) + C * fd.cos(2 * R * lon))/g
     h0.interpolate(Dexpr)
+    H.assign(H0)
 else:
     raise NotImplementedError
+
+hbar = fd.assemble(h0*dx)/fd.assemble(One*dx)
+H.assign(hbar)
 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)
