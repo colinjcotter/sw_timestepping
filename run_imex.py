@@ -1,6 +1,5 @@
 levels = ["6"]
-#dts = [100, 75, 37.5, 18.75]
-dts = [1]
+dts = [120, 100, 75, 37.5, 18.75]
 day = 60*60*24
 tmax = day*1
 williamson=6
@@ -39,15 +38,14 @@ for dt in dts:
             os.makedirs(fname)
             if warmup:
                 args += ["--one_step"]
-            args += ["--pcscheme", "lu"]
             args += ["--show_args"]
             args += ["--checkpointfile", fname+"/chk.h5"]
             args += ["--filename", fname+"/data"]
             args += ["-log_view", ":"+fname+"/log"]
             args += ["&>", fname+"/out"]
             print("mpiexec -n "+str(ncpu)+" python imex.py " + " ".join(args))
-            print("grep 'Main Stage:' "+fname+"/log > "+fname+"/stats")
-            print("grep Iterations "+fname+"/out >> "+fname+"/stats")
+            print("grep 'Stepper:' "+fname+"/log > "+fname+"/stats")
+            print("grep 'PCSetUp ' "+fname+"/log >> "+fname+"/stats")
 
             if vector_invariant:
                 options["vector_invariant"] = "Y"

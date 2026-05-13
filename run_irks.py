@@ -1,13 +1,10 @@
 levels = ["6"]
-#dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
-dts = [1]
+dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
 pcs = ["mg"]
-#stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
-stages = [1]
+stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
 day = 60*60*24
 tmax = day*1
-ntol = 1.0e-8
-kspatol = 0 #2.0e2
+ntol = 1.0e-6
 williamson=6
 ncpus = [16]
 vector_invariant = True
@@ -15,7 +12,7 @@ vector_invariant = True
 #irks = [("WSODIRK", 4, 3, 2),
 #        ("WSODIRK", 4, 3, 3),
 #        "Alexander"]
-irks = ["GaussLegendre"]
+irks = ["GaussLegendre", "RadauIIA"]
 
 warmup = False
 
@@ -35,7 +32,6 @@ for dt in dts:
                             irk_name = irk
                         options = {"tmax": tmax,
                                    "ntol": ntol,
-                                   "kspatol": kspatol,
                                    "williamson": 6,
                                    "dt": dt,
                                    "coords_degree": 1,
@@ -70,7 +66,8 @@ for dt in dts:
                         args += ["-log_view", ":"+fname+"/log"]
                         args += ["&>", fname+"/out"]
                         print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
-                        print("grep 'Main Stage:' "+fname+"/log > "+fname+"/stats")
+                        print("grep 'Stepper:' "+fname+"/log > "+fname+"/stats")
+                        print("grep 'PCSetUp ' "+fname+"/log >> "+fname+"/stats")
                         print("grep Iterations "+fname+"/out >> "+fname+"/stats")
                         if vector_invariant:
                             options["vector_invariant"] = "Y"

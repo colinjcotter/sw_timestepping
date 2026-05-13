@@ -67,7 +67,6 @@ parameters = {
     "snes_rtol": args.ntol,
     "snes_lag_jacobian": 100,
     #"snes_lag_jacobian_persists": None,
-    "ksp_atol": args.kspatol,
     "ksp_converged_rate": None,
     "ksp_max_it": 60,
     #"ksp_view": None
@@ -138,14 +137,23 @@ step = 0
 t = 0.
 itcount = 0
 
+print = PETSc.Sys.Print
+
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
 
     tdump += dt
     t += dt
-    stepper.advance()
+    with PETSc.Log.Stage("Stepper"):
+        stepper.stages.zero()
+        F = stepper.solver._problem.F
+        with fd.assemble(F).dat.vec_ro as vec:
+            res0 = vec.norm()
+        snes_rtol = stepper.solver.snes.rtol
+        stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
+        stepper.advance()
     itcount += stepper.solver.snes.getLinearSolveIterations()
-    
+
     if args.one_step:
         break
 

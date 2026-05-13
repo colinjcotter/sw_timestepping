@@ -37,23 +37,31 @@ lparams = {
     'pc_python_type': 'firedrake.HybridizationPC',
     'hybridization': {'ksp_type': 'preonly',
                       'pc_type': 'lu',
-                      "pc_factor_mat_solver_type":'superlu_dist'
+                      "pc_factor_mat_solver_type":'mumps'
                       }}
     
-mass = {
-    "ksp_type": "gmres",
+dgmass = {
+    "ksp_type": "preonly",
     "pc_type": "bjacobi",
     "sub_pc_type": "ilu"
 }
 
+hdivmass = {
+    "ksp_type": "gmres",
+    "pc_type": "bjacobi",
+    "sub_pc_type": "ilu",
+    "ksp_atol": 0,
+    "ksp_rtol": 1.0e-10,
+}
+
 massparams = {
+    "snes_type": "ksponly",
     "snes_lag_jacobian": -2,
     "snes_lag_jacobian_persists": None,
-    "snes_monitor": None,
     "ksp_type": "preonly",
     "pc_type": "fieldsplit",
-    "fieldsplit_0": mass,
-    "fieldsplit_1": mass
+    "fieldsplit_0": hdivmass,
+    "fieldsplit_1": dgmass
 }
 
 stepper = ARK3222(linear, nonlinear, Un, dT, lparams, massparams)
@@ -80,8 +88,9 @@ while t < tmax - 0.5*dt:
     step += 1
     t += dt
     tdump += dt
-
-    stepper.advance()
+    
+    with PETSc.Log.Stage("Stepper"):
+        stepper.advance()
 
     if args.one_step:
         step = nsteps-1

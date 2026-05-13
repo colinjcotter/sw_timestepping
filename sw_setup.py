@@ -29,7 +29,6 @@ parser.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSOD
 parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
-parser.add_argument('--kspatol', type=float, default=2.0e2, help='Absolute ksp tolerance for IRKs')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 parser.add_argument('--pcscheme',type=str, default='mg', help='[mg] use multigrid with star patch smoothers, [patch] use a star patch preconditioner on single level')
 
@@ -306,9 +305,9 @@ p = fd.TestFunction(V0)
 qn = fd.Function(V0, name="Relative Vorticity")
 veqn = q*p*dx + fd.inner(perp(fd.grad(p)), un)*dx
 vprob = fd.LinearVariationalProblem(fd.lhs(veqn), fd.rhs(veqn), qn)
-qparams = {'ksp_type':'preonly',
-           'pc_type':'lu',
-           "pc_factor_mat_solver_type": "superlu_dist"}
+qparams = {'ksp_type':'gmres',
+           'pc_type':'bjacobi',
+           'sub_pc_type':'ilu'}
 qsolver = fd.LinearVariationalSolver(vprob,
                                      solver_parameters=qparams)
 
