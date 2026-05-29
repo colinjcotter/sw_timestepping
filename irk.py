@@ -65,8 +65,10 @@ parameters = {
     "snes_atol": 0,
     "snes_stol": 0,
     "snes_rtol": args.ntol,
-    "snes_lag_jacobian": 100,
-    #"snes_lag_jacobian_persists": None,
+    "snes_lag_jacobian": 20,
+    "snes_lag_jacobian_persists": None,
+    #"snes_lag_preconditioner": 20,
+    #"snes_lag_preconditioner_persists": None,
     "ksp_converged_rate": None,
     "ksp_max_it": 60,
     #"ksp_view": None
@@ -99,8 +101,11 @@ if args.pcscheme == 'mg':
         "mg_levels_patch_sub_pc_factor_reuse_ordering" : None,
         "mg_coarse_pc_type": "python",
         "mg_coarse_pc_python_type": "firedrake.AssembledPC",
-        "mg_coarse_assembled_pc_type": "lu",
-        "mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
+        "mg_coarse_ksp_type": "gmres",
+        "mg_coarse_ksp_max_it": 3,
+        "mg_coarse_assembled_pc_type": "bjacobi",
+        "mg_coarse_assembled_sub_pc_type": "ilu",
+        #"mg_coarse_assembled_pc_factor_mat_solver_type": "superlu_dist",
     }
     parameters = parameters | mgparameters
 elif args.pcscheme == 'patch':
@@ -139,23 +144,53 @@ itcount = 0
 
 print = PETSc.Sys.Print
 
+def advance():
+    try:
+        stepper.stages.zero()
+    except:
+        pass
+    F = stepper.solver._problem.F
+    with fd.assemble(F).dat.vec_ro as vec:
+        res0 = vec.norm()
+    snes_rtol = stepper.solver.snes.rtol
+    stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
+    stepper.advance()
+
+if args.diagnostics:
+    energy0 = fd.assemble(
+        fd.inner(u0, u0)*h0/2*fd.dx
+        + g*h0*(h0/2 + b)*fd.dx
+    )
+    divnorm0 = fd.norm(fd.div(u0))
+
+    energies = []
+    divnorms = []
+    
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
 
     tdump += dt
     t += dt
-    with PETSc.Log.Stage("Stepper"):
-        stepper.stages.zero()
-        F = stepper.solver._problem.F
-        with fd.assemble(F).dat.vec_ro as vec:
-            res0 = vec.norm()
-        snes_rtol = stepper.solver.snes.rtol
-        stepper.solver.snes.ksp.atol = 0.1*snes_rtol*res0
-        stepper.advance()
+    if step==0:
+        with PETSc.Log.Stage("StepperFirst"):
+            advance()
+    else:
+        with PETSc.Log.Stage("StepperNext"):
+            advance()
+
     itcount += stepper.solver.snes.getLinearSolveIterations()
 
     if args.one_step:
         break
+
+    if args.diagnostics:
+        energy = fd.assemble(
+            fd.inner(u0, u0)*h0/2*fd.dx
+            + g*h0*(h0/2 + b)*fd.dx
+        )
+        divnorm = fd.norm(fd.div(u0))
+        energies.append((energy-energy0)/energy)
+        divnorms.append(divnorm)
 
     if tdump > dumpt - dt*0.5:
         etan.assign(h0 - H + b)
@@ -173,3 +208,11 @@ PETSc.Sys.Print("Iterations", itcount, "its per step", itcount/(step+1),
 etan.assign(h0 - H + b)
 un.assign(u0)
 checkpoint_output(un, etan)
+
+if args.diagnostics:
+    print("Goats")
+    import pandas as pd
+    df = pd.DataFrame()
+    df["Energy"] = energies
+    df["Divergence"] = divnorms
+    df.to_csv(args.filename+'diagnostics.csv', mode='w')

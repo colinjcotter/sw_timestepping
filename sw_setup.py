@@ -20,6 +20,7 @@ parser.add_argument('--one_step', action='store_true', help='Do one timestep and
 parser.add_argument('--filename', type=str, default='w5')
 parser.add_argument('--checkpointfile', type=str, default='none')
 parser.add_argument('--vector_invariant', action='store_true', help='Use the vector invariant form.')
+parser.add_argument('--calculateH', action='store_true', help='Set H numerically from the mean of D.')
 parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
 parser.add_argument('--rk_type', type=str, default='RadauIIA',
@@ -28,6 +29,7 @@ parser.add_argument('--stage_type',type=str, default='deriv', help='Stage type f
 parser.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
 parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
+parser.add_argument('--diagnostics', action='store_true', help='Output energy and divergence norm stats.')
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 parser.add_argument('--pcscheme',type=str, default='mg', help='[mg] use multigrid with star patch smoothers, [patch] use a star patch preconditioner on single level')
@@ -296,8 +298,9 @@ elif testcase == 6:
 else:
     raise NotImplementedError
 
-hbar = fd.assemble(h0*dx)/fd.assemble(One*dx)
-H.assign(hbar)
+if args.calculateH:
+    hbar = fd.assemble(h0*dx)/fd.assemble(One*dx)
+    H.assign(hbar)
 
 q = fd.TrialFunction(V0)
 p = fd.TestFunction(V0)

@@ -1,18 +1,25 @@
 levels = ["6"]
-dts = [14400, 10800, 7200, 3600, 2400, 1200, 600, 300]
+dts = [7200, 3600, 2400, 1200, 600, 300]
+dts = [3600]
 pcs = ["mg"]
 stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
+stages = [2]
 day = 60*60*24
 tmax = day*1
+tmax = day*50
+dumpt = day
 ntol = 1.0e-6
-williamson=6
+williamson=5
 ncpus = [16]
 vector_invariant = True
+diagnostics = True
 
 #irks = [("WSODIRK", 4, 3, 2),
 #        ("WSODIRK", 4, 3, 3),
-#        "Alexander"]
-irks = ["GaussLegendre", "RadauIIA"]
+#        "Alexander"
+#        ]
+irks = ["GaussLegendre"]
+#irks = ["RadauIIA"]
 
 warmup = False
 
@@ -32,7 +39,8 @@ for dt in dts:
                             irk_name = irk
                         options = {"tmax": tmax,
                                    "ntol": ntol,
-                                   "williamson": 6,
+                                   "williamson": williamson,
+                                   "dumpt": dumpt,
                                    "dt": dt,
                                    "coords_degree": 1,
                                    "ref_level": level,
@@ -42,6 +50,8 @@ for dt in dts:
                                    }
                         if vector_invariant:
                             options["vector_invariant"] = ""
+                        if diagnostics:
+                            options["diagnostics"] = ""
                         if irk_name == "WSODIRK":
                             options["rk_stages"] = irk[1]
                             options["WSODIRK_order"] = irk[2]
@@ -66,15 +76,20 @@ for dt in dts:
                         args += ["-log_view", ":"+fname+"/log"]
                         args += ["&>", fname+"/out"]
                         print("mpiexec -n "+str(ncpu)+" python irk.py " + " ".join(args))
-                        print("grep 'Stepper:' "+fname+"/log > "+fname+"/stats")
-                        print("grep 'PCSetUp ' "+fname+"/log >> "+fname+"/stats")
+                        print("grep 'StepperFirst:' "+fname+"/log > "+fname+"/stats")
+                        print("grep 'StepperNext:' "+fname+"/log >> "+fname+"/stats")
                         print("grep Iterations "+fname+"/out >> "+fname+"/stats")
                         if vector_invariant:
                             options["vector_invariant"] = "Y"
                         else:
                             options["vector_invariant"] = "N"
+                        if diagnostics:
+                            options["diagnostics"] = "Y"
+                        else:
+                            options["diagnostics"] = "N"
+
                         rows.append(options)
 
 import pandas as pd
 df = pd.DataFrame(rows)
-df.to_csv("irks.csv")
+df.to_csv("irks.csv", mode='a')

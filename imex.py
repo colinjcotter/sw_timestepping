@@ -88,10 +88,13 @@ while t < tmax - 0.5*dt:
     step += 1
     t += dt
     tdump += dt
-    
-    with PETSc.Log.Stage("Stepper"):
-        stepper.advance()
 
+    if step == 1:
+        with PETSc.Log.Stage("StepperFirst"):
+            stepper.advance()
+    else:
+        with PETSc.Log.Stage("StepperNext"):
+            stepper.advance()
     if args.one_step:
         step = nsteps-1
 
