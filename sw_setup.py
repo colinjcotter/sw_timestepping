@@ -179,17 +179,17 @@ def h_op(phi, u, h, system="full"):
     else:
         unp = 0.5*(fd.dot(u('+'), n('+')) + abs(fd.dot(u('+'), n('+'))))
         unm = 0.5*(fd.dot(u('-'), n('-')) + abs(fd.dot(u('-'), n('-'))))
-        nonlinear = (- fd.inner(fd.grad(phi), u)*h*dx
-                     + fd.jump(phi)*(unp*h('+')
-                                     - unm*h('-'))*dS
-                     )
-        nonlinear -= linear
+    full = (- fd.inner(fd.grad(phi), u)*h*dx
+            + fd.jump(phi)*(unp*h('+')
+                            - unm*h('-'))*dS
+            )
+    nonlinear = full - linear
     if system == "linear":
         return linear
     elif system == "nonlinear":
         return nonlinear
     elif system == "full":
-        return nonlinear+linear
+        return full
 
 # monolithic solver options
 
