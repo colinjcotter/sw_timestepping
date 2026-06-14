@@ -1,25 +1,22 @@
 levels = ["6"]
 dts = [7200, 3600, 2400, 1200, 600, 300]
-dts = [3600]
 pcs = ["mg"]
 stages = [1,2,3] # overridden in the presence of DIRKs, best not to mix DIRK and FIRK
-stages = [2]
 day = 60*60*24
 tmax = day*1
-tmax = day*50
-dumpt = day
+dumpt = day*1000
 ntol = 1.0e-6
-williamson=5
+williamson=6
 ncpus = [16]
 vector_invariant = True
-diagnostics = True
+diagnostics = False # SWITCH FOR ENERGY/DIVERGENCE
+stage_type = "deriv"
 
 #irks = [("WSODIRK", 4, 3, 2),
 #        ("WSODIRK", 4, 3, 3),
 #        "Alexander"
 #        ]
-irks = ["GaussLegendre"]
-#irks = ["RadauIIA"]
+irks = ["GaussLegendre","RadauIIA"]
 
 warmup = False
 
@@ -47,6 +44,7 @@ for dt in dts:
                                    "rk_stages": stage,
                                    "pcscheme": pc,
                                    "rk_type": irk_name,
+                                   "stage_type": stage_type
                                    }
                         if vector_invariant:
                             options["vector_invariant"] = ""

@@ -38,4 +38,4 @@ df["First Step Time"] = pd.Series(firsttimes)
 df["Elevation error"] = eta_errors
 df["Velocity error"] = u_errors
 
-df.to_csv('imex_w_stats.csv')
+df.to_csv('imex_w_stats_imex.csv')

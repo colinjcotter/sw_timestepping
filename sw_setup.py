@@ -25,7 +25,7 @@ parser.add_argument('--bdfm', action='store_true', help='Use the BDFM space.')
 parser.add_argument('--rk_stages', type=int, default=2, help='Number of RK stages in IRK.')
 parser.add_argument('--rk_type', type=str, default='RadauIIA',
                     help='RadauIIA, GaussLegendre, Alexander or WSODIRK')
-parser.add_argument('--stage_type',type=str, default='deriv', help='Stage type for FIRKs. Selecting DIRKs as rk_type will change this to [dirk]')
+parser.add_argument('--stage_type',type=str, default='deriv', help='Stage type for FIRKs (deriv [default], value). Selecting DIRKs as rk_type will change this to [dirk]')
 parser.add_argument('--WSODIRK_order', type=int, default=2, help='order for WSODIRKs')
 parser.add_argument('--weak_stage_order', type=int, default=2, help='weak stage order for WSODIRKs')
 parser.add_argument('--centred', action='store_true', help='Use centred fluxes.')
@@ -33,7 +33,6 @@ parser.add_argument('--diagnostics', action='store_true', help='Output energy an
 parser.add_argument('--ntol', type=float, default=1.0e-6, help='Solver tolerance for the nonlinear solver')
 parser.add_argument('--williamson', type=int, default=5, help='Williamson testcase number.')
 parser.add_argument('--pcscheme',type=str, default='mg', help='[mg] use multigrid with star patch smoothers, [patch] use a star patch preconditioner on single level')
-
 
 args = parser.parse_known_args()
 args = args[0]

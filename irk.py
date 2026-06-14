@@ -169,6 +169,9 @@ if args.diagnostics:
 for step in range(nsteps):
     PETSc.Sys.Print(f"\nTimestep {step} of {nsteps}.\n")
 
+    if args.stage_type == "value":
+        print("VALUE")
+        stepper.set_initial_guess()
     tdump += dt
     t += dt
     if step==0:

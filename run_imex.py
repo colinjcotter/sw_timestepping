@@ -1,12 +1,10 @@
 levels = ["6"]
 dts = [180, 160, 150, 100, 75, 37.5, 18.75]
-dts = [1]
 day = 60*60*24
 tmax = day*1
 williamson=6
 ncpus = [16]
-vector_invariant = False
-
+vector_invariant = True
 warmup = False
 
 import subprocess, os
@@ -43,6 +41,7 @@ for dt in dts:
             args += ["--checkpointfile", fname+"/chk.h5"]
             args += ["--filename", fname+"/data"]
             args += ["-log_view", ":"+fname+"/log"]
+            args += ["--calculateH"]
             args += ["&>", fname+"/out"]
             print("mpiexec -n "+str(ncpu)+" python imex.py " + " ".join(args))
             print("grep 'StepperFirst:' "+fname+"/log > "+fname+"/stats")
